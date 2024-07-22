@@ -16,7 +16,8 @@ from stable_baselines3.common.buffers import ReplayBuffer
 from torch.utils.tensorboard import SummaryWriter
 from torch.autograd import grad
 
-from optim import ProgramOptimizer
+from cma_optim import ProgramOptimizer
+from postfix_program import NUM_OPERATORS
 
 import envs
 
@@ -61,7 +62,7 @@ class Args:
     """the discount factor gamma"""
     tau: float = 0.005
     """target smoothing coefficient (default: 0.005)"""
-    batch_size: int = 1
+    batch_size: int = 256
     """the batch size of sample from the reply memory"""
     policy_noise: float = 0.2
     """the scale of policy noise"""
@@ -69,20 +70,22 @@ class Args:
     """the scale of exploration noise"""
     learning_starts: int = 0.1 * total_timesteps
     """timestep to start learning"""
-    policy_frequency: int = 3
+    policy_frequency: int = 5
     """the frequency of training policy (delayed)"""
     noise_clip: float = 0.5
     """noise clip parameter of the Target Policy Smoothing Regularization"""
 
     # Parameters for the program optimizer
-    num_individuals: int = 10
-    num_genes: int = 2
+    sigma0: float = 1
+    "Initial standard deviation of the CMA evolution strategy."
+    num_genes: int = 3
+    "Number of genes in the program."
 
-    num_generations: int = 10
-    num_parents_mating: int = 2
-    keep_parents: int = 1
-    mutation_percent_genes: int = 10
-    keep_elites: int = 1
+    N_INPUT_VARIABLES = 1
+
+    CMAOptions={
+        'bounds': [-NUM_OPERATORS - N_INPUT_VARIABLES, 1.0]
+    }
 
 
 def make_env(env_id, seed, idx, capture_video, run_name):

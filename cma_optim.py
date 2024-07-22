@@ -3,13 +3,13 @@ from cma import CMAEvolutionStrategy
 import numpy as np
 from postfix_program import Program
 
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 import pyrallis
 
 
 class ProgramOptimizer:
 
-    def __init__(self, config, n_input_variables):
+    def __init__(self, config, cma_options={}, n_input_variables=0):
         # Create the initial population
         self.initial_program = [-1.0] * config.num_genes
 
@@ -19,7 +19,9 @@ class ProgramOptimizer:
         self.n_input_variables = n_input_variables
 
         self.config = config
-        self.ga_instance = CMAEvolutionStrategy(self.initial_program, config.sigma0)
+        self.cma_options = cma_options
+        self.ga_instance = CMAEvolutionStrategy(self.initial_program, sigma0=config.sigma0,
+                                                options=self.cma_options)
 
     def get_best_program(self):
         return Program(genome=self.best_solution)
@@ -50,7 +52,7 @@ class ProgramOptimizer:
 
         res_soloution = self.ga_instance.result[0]
         res_fitness = self.ga_instance.result.fbest
-        if self.best_solution is None or self.best_fitness:
+        if self.best_fitness is None or res_fitness > self.best_fitness:
             self.best_fitness = res_fitness
             self.best_solution = res_soloution
 
@@ -63,15 +65,19 @@ class Config:
     "Number of genes in the program."
 
 
+CMAOptions = {
+    'verb_disp': 0,
+}
+
+
 @pyrallis.wrap()
 def main(config: Config):
-    optim = ProgramOptimizer(config, n_input_variables=1)
+    optim = ProgramOptimizer(config, cma_options=CMAOptions, n_input_variables=1)
 
     states = np.random.random_sample((10, 2))
     actions = np.sum(states, axis=1)
     actions = np.reshape(actions, (10, 1))
 
-    optim.fit(states, actions)
     res = optim.get_best_program()
 
 
