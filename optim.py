@@ -21,6 +21,8 @@ class ProgramOptimizer:
 
         self.config = config
 
+        self.state_dim = state_dim
+
     def get_action(self, state):
         program = Program(genome=self.best_solution)
         return program(state)
@@ -45,6 +47,7 @@ class ProgramOptimizer:
 
         fitness = -(sum_error / (batch_size + self.config.num_eval_runs))
 
+        #print(fitness)
         return fitness
 
     def fit(self, states, actions):
@@ -74,7 +77,11 @@ class ProgramOptimizer:
             mutation_type="random",
             random_mutation_max_val=10,
             random_mutation_min_val=-10,
-            parallel_processing=["process", None]
+            parallel_processing=["process", None],
+            gene_space={
+                'low': -NUM_OPERATORS - self.state_dim,
+                'high': 1
+            }
         )
 
         self.ga_instance.run()

@@ -59,8 +59,8 @@ class Program:
     def __call__(self, inp):
         return self.run_program(inp, do_print=False)
 
-    def __str__(self):
-        return self.run_program([1.0], do_print=True)
+    #def __str__(self):
+    #    return self.run_program([1.0], do_print=True)
 
     def run_program(self, inp, do_print=False):
         stack = []

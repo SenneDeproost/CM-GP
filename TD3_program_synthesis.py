@@ -17,10 +17,11 @@ from torch.utils.tensorboard import SummaryWriter
 from torch.autograd import grad
 
 from optim import ProgramOptimizer
+from multiprocessing import Process
 
 import envs
 
-
+EPISODIC_RETURN, EPISODIC_LENGTH = [], []
 RES = []
 
 @dataclass
@@ -49,7 +50,7 @@ class Args:
     """the user or org name of the model repository from the Hugging Face Hub"""
 
     # Algorithm specific arguments
-    env_id: str = "SimpleTwoStates-v0"
+    env_id: str = "SimpleGoal-v0"
     """the id of the environment"""
     total_timesteps: int = int(1e4)
     """total timesteps of the experiments"""
@@ -67,22 +68,23 @@ class Args:
     """the scale of policy noise"""
     exploration_noise: float = 0.1
     """the scale of exploration noise"""
-    learning_starts: int = 256
+    learning_starts: int = 1000
     """timestep to start learning"""
-    policy_frequency: int = 100
+    policy_frequency: int = 2
     """the frequency of training policy (delayed)"""
     noise_clip: float = 0.5
     """noise clip parameter of the Target Policy Smoothing Regularization"""
 
     # Parameters for the program optimizer
-    num_individuals: int = 50
+    num_individuals: int = 10
     num_genes: int = 4
-    num_eval_runs: int = 10
+    num_eval_runs: int = 3
+    parallel_processing = 4
 
-    num_generations: int = 20
-    num_parents_mating: int = 20
-    keep_parents: int = 5
-    mutation_percent_genes: int = 10
+    num_generations: int = 5
+    num_parents_mating: int = 3
+    keep_parents: int = 2
+    mutation_percent_genes: int = 20
 
 
 def make_env(env_id, seed, idx, capture_video, run_name):
@@ -183,6 +185,8 @@ def run_synthesis(args: Args):
     # TRY NOT TO MODIFY: start the game
     obs, _ = env.reset(seed=args.seed)
 
+    EPISODE_RETURN, EPISODE_LENGTH = 0, 0
+
     for global_step in range(args.total_timesteps):
 
         # ALGO LOGIC: put action logic here
@@ -191,23 +195,33 @@ def run_synthesis(args: Args):
         else:
             with torch.no_grad():
                 action = get_state_actions(program_optimizers, obs[None, :], env, args)[0]
-                print('ACTION', action)
+        print(f'Performing action {action} in episode {EPISODE_LENGTH}')
 
         # TRY NOT TO MODIFY: execute the game and log data.
         next_obs, reward, termination, truncation, info = env.step(action)
 
         # TRY NOT TO MODIFY: record rewards for plotting purposes
-        print(f"global_step={global_step}, episodic_return={info['episode']['r']}")
-        writer.add_scalar("charts/episodic_return", info["episode"]["r"], global_step)
-        writer.add_scalar("charts/episodic_length", info["episode"]["l"], global_step)
+        #if 'episode' in info.keys():
+        #    print(f"global_step={global_step}, episodic_return={info['episode']['r']}")
+        #    writer.add_scalar("charts/episodic_return", info["episode"]["r"], global_step)
+        #    writer.add_scalar("charts/episodic_length", info["episode"]["l"], global_step)
 
         # TRY NOT TO MODIFY: save data to reply buffer; handle `final_observation`
         real_next_obs = next_obs.copy()
         rb.add(obs, real_next_obs, action, reward, termination, info)
 
+        # Logging
+        EPISODE_RETURN += reward
+        EPISODE_LENGTH += 1
+
         # RESET
         if termination or truncation:
             next_obs, _ = env.reset()
+            print(f'Episode return: {EPISODE_RETURN}')
+            EPISODIC_RETURN.append(EPISODE_RETURN)
+            EPISODIC_LENGTH.append(EPISODE_LENGTH)
+            EPISODE_RETURN, EPISODE_LENGTH = 0, 0
+
 
         # TRY NOT TO MODIFY: CRUCIAL step easy to overlook
         obs = next_obs
@@ -249,7 +263,9 @@ def run_synthesis(args: Args):
                 program_actions = get_state_actions(program_optimizers, data.observations.detach().numpy(), env, args)
                 program_actions = torch.tensor(program_actions, requires_grad=True)
 
-                program_objective = qf1(data.observations, program_actions).mean()
+                program_objective_1 = qf1(data.observations, program_actions).mean()
+                program_objective_2 = qf2(data.observations, program_actions).mean()
+                program_objective = (program_objective_1 + program_objective_2)/2
                 program_objective.backward()
 
                 improved_actions = program_actions + program_actions.grad
@@ -263,8 +279,8 @@ def run_synthesis(args: Args):
                 print('Best program:')
 
                 for action_index in range(env.action_space.shape[0]):
-                    program_optimizers[action_index].fit(states, actions[:, action_index])
 
+                    program_optimizers[action_index].fit(states, actions[:, action_index])
                     print(f"a[{action_index}] = {program_optimizers[action_index].get_best_solution_str()}")
 
             # update the target network
