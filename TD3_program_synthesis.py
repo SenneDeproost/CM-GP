@@ -74,10 +74,12 @@ class Args:
 
     # Parameters for the program optimizer
     num_individuals: int = 100
-    num_genes: int = 5
+    num_genes: int = 1
     num_eval_runs: int = 10
 
-    num_generations: int = 50
+    program_grow_frequency: int = 5000
+
+    num_generations: int = 2
     num_parents_mating: int = 50
     keep_parents: int = 50
     mutation_percent_genes: int = 20
@@ -239,6 +241,13 @@ def run_synthesis(args: Args):
             q_optimizer.zero_grad()
             qf_loss.backward()
             q_optimizer.step()
+
+            for p in program_optimizers:
+                # if p.pop_fitness > args.program_growth_threshold:
+                if global_step % args.program_grow_frequency == 0:
+                    p.increase_individual_size()
+                    # print(f'Population fitness: {gp_pop_fitness}')
+                    print(f'New program shape: {p.initial_population.shape}')
 
             # Optimize the program
             if global_step % args.policy_frequency == 0:

@@ -26,6 +26,11 @@ class ProgramOptimizer:
         program = Program(genome=self.best_solution)
         return program(state)
 
+    def increase_individual_size(self):
+        s = self.initial_population.shape
+        s = (s[0], s[1] + 2)
+        self.initial_population = np.resize(self.initial_population, s)
+
     def get_best_solution_str(self):
         program = Program(genome=self.best_solution)
         return program.to_string([0.0] * self.state_dim)
@@ -53,7 +58,7 @@ class ProgramOptimizer:
         avg_error = (sum_error / (batch_size * self.config.num_eval_runs))
         avg_lookedat = (sum_lookedat / (batch_size * self.config.num_eval_runs))
 
-        fitness = -avg_error / (avg_lookedat + 0.01) # FIXME: random equation
+        fitness = -avg_error #/ (avg_lookedat + 0.01) # FIXME: random equation
 
         return fitness
 
