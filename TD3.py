@@ -43,9 +43,9 @@ class Args:
     """the user or org name of the model repository from the Hugging Face Hub"""
 
     # Algorithm specific arguments
-    env_id: str = "SimpleActionOnly-v0"
+    env_id: str = "InvertedPendulum-v4"
     """the id of the environment"""
-    total_timesteps: int = 600
+    total_timesteps: int = 300000
     """total timesteps of the experiments"""
     learning_rate: float = 3e-4
     """the learning rate of the optimizer"""

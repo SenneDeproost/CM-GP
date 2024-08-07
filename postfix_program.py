@@ -28,8 +28,8 @@ def from_bool(x):
     return 1.0 if x else -1.0
 
 OPERATORS = [
-    Operator('abs', 1, lambda a: abs(a)),
     Operator('-abs', 1, lambda a: -abs(a)),
+    Operator('abs', 1, lambda a: abs(a)),
     Operator('sin', 1, lambda a: math.sin(a)),
     Operator('-sin', 1, lambda a: -math.sin(a)),
     Operator('cos', 1, lambda a: math.cos(a)),
@@ -52,6 +52,14 @@ OPERATORS = [
     Operator('?', 3, lambda cond, a, b: a if cond > 0.0 else b),
     Operator('<end>', 0, None),
 ]
+_OPERATORS = [
+    Operator('neg', 1, lambda a: -a),
+    Operator('+', 2, lambda a, b: a + b),
+    Operator('-', 2, lambda a, b: a - b),
+    Operator('*', 2, lambda a, b: a * b)
+    ]
+
+
 NUM_OPERATORS = len(OPERATORS)
 FIND_X_REGEX = re.compile('\[(\d+)\]')
 
@@ -59,15 +67,16 @@ class Program:
     def __init__(self, genome):
         self.tokens = []
 
-        for pointer in range(0, len(genome), 2):
+        for pointer in range(0, len(genome), 1):
             # Sample the actual token to execute
             mean = genome[pointer + 0]
-            log_std = genome[pointer + 1]
+            #log_std = genome[pointer + 1]
 
-            if log_std > 10.0:
-                log_std = 10.0      # Prevent exp() from overflowing
+            #if log_std > 10.0:
+            #    log_std = 10.0      # Prevent exp() from overflowing
 
-            token = np.random.normal(loc=mean, scale=math.exp(log_std))
+            #token = np.random.normal(loc=mean, scale=math.exp(log_std))
+            token = mean
             self.tokens.append(token)
 
     def to_string(self, inp):
@@ -85,8 +94,9 @@ class Program:
         functions = {operator.name: operator.function for operator in OPERATORS}
 
         for token in self.tokens:
+
             # Literal, push it with a random sign. The program has to use the make_pos() and make_neg() operators to fix the sign
-            if token >= 0.0:
+            if token > 0.0:
                 if do_print:
                     stack.append(str(token))
                 else:
@@ -94,28 +104,28 @@ class Program:
 
                 continue
 
-            token = int(token)
+            # !!! What to do in [-1, 0]?
 
-            if token < -NUM_OPERATORS:
+            # Float to int
+            token = int(token)  # Token can collapse to 0
+
+            if token < -(NUM_OPERATORS - 1):
                 # Input variable
-                input_index = -token - NUM_OPERATORS - 1
+                input_index = (-token) - NUM_OPERATORS # -1 # Fixme x[-1] bug
 
-                # Silently ignore input variables beyond the end of inp
+                # Input variables outside gene space give invalid program
                 if input_index < len(inp):
                     if do_print:
                         stack.append(f'x[{input_index}]')
                     else:
                         stack.append(inp[input_index])
                 else:
-                    if do_print:
-                        stack.append('randn()')
-                    else:
-                        stack.append(np.random.normal())
+                    return False
 
                 continue
 
             # Operators
-            operator_index = -token - 1
+            operator_index = -token #- 1  # ) is a valid operator index
             operator = OPERATORS[operator_index]
 
             if operator.function is None:
@@ -127,7 +137,7 @@ class Program:
 
             for index in range(operator.num_operands):
                 if len(stack) == 0:
-                    operand = np.random.normal()
+                    return False
                 else:
                     operand = stack.pop()
 
@@ -149,7 +159,7 @@ class Program:
                 # it means that it only uses operators and constants, so we can simply
                 # show the program as the constant
                 try:
-                    result = str(eval(result, functions))
+                    result = str(eval(str(result), functions))
                 except:
                     pass
 
@@ -159,15 +169,34 @@ class Program:
                 result = operator.function(*operands)
                 stack.append(result)
 
-        if len(stack) == 0:
-            if do_print:
-                stack.append('randn()')
-            else:
-                stack.append(np.random.normal())
+        #if len(stack) == 0:
+        #    if do_print:
+        #        stack.append('randn()')
+        #    else:
+        #        stack.append(np.random.normal())
 
-        return stack[-1]
+        if len(stack) != 1:
+            return False
+        else:
+            return stack[0]
 
 if __name__ == '__main__':
+
+    #dna = [1, -4, -3]
+    #dna = [-4, 1, -3]
+    #dna = [5, 2, -0.85920162]
+    #dna = [-24.71449391, -11.60984538, -0.2174561, -8.77988002] # Bug check to see if -0.2174561 becomes -1 in previous code
+    #dna = [6.02121839, -0.30700242, 4.24931872, 4.34315772, 2.7393023, 4.35747285, -5.04227145]
+    dna = [6.83021808, -5.27335768, 4.47508566, -18.23559467, -19.86836209]
+    p = Program(dna)
+    #print(p.to_string([0, 0, 0, 0]))
+    print(p.run_program([4], do_print=True))
+    #print(p.run_program([0]))
+
+    exit()
+
+
+
     # Compute the average output of programs
     values = []
 

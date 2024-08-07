@@ -49,7 +49,7 @@ class Args:
     """the user or org name of the model repository from the Hugging Face Hub"""
 
     # Algorithm specific arguments
-    env_id: str = "Pendulum-v1"
+    env_id: str = 'InvertedPendulum-v4'
     """the id of the environment"""
     total_timesteps: int = 1000000000
     """total timesteps of the experiments"""
@@ -65,26 +65,28 @@ class Args:
     """the batch size of sample from the reply memory"""
     policy_noise: float = 0.2
     """the scale of policy noise"""
+    exploration_noise: float = 0.1
+    """the scale of exploration noise"""
     learning_starts: int = 0
     """timestep to start learning"""
-    policy_frequency: int = 100 # 500 ## 2
+    policy_frequency: int = 2 # 500 ## 2
     """the frequency of training policy (delayed)"""
     noise_clip: float = 0.5
     """noise clip parameter of the Target Policy Smoothing Regularization"""
 
-    program_grow_frequency: int = 5000 # 5000
+    program_grow_frequency: int = 1000000000000000000 # 5000
     #program_growth_threshold: float = 0
-    learn_policy_starts: int = 1
+    learn_program_starts: int = 1
 
     # Parameters for the program optimizer
     num_individuals: int = 100 # 100
-    num_genes: int = 1 # 3
+    num_genes: int = 10 # 3
     num_eval_runs: int = 1
 
-    num_generations: int = 5 # 5
-    num_parents_mating: int = 30 # 30
+    num_generations: int = 1 # 5
+    num_parents_mating: int = 10 # 30
     keep_parents: int = 0
-    mutation_probability: int = 0.05
+    mutation_probability: int = 0.1
     #mutation_percent_genes: int = 10 #10 ## 5
     keep_elitism: int = 5 # 30
 
@@ -112,6 +114,27 @@ class QNetwork(nn.Module):
         x = F.relu(self.fc1(x))
         x = self.fc3(x)
         return x
+
+class Actor(nn.Module):
+    def __init__(self, env):
+        super().__init__()
+        self.fc1 = nn.Linear(np.array(env.observation_space.shape).prod(), 256)
+        self.fc2 = nn.Linear(256, 256)
+        self.fc_mu = nn.Linear(256, np.prod(env.action_space.shape))
+        # action rescaling
+        self.register_buffer(
+            #"action_scale", torch.tensor((env.action_space.high - env.action_space.low) / 2.0, dtype=torch.float32)
+            'action_scale', torch.tensor([1])
+        )
+        self.register_buffer(
+            "action_bias", torch.tensor((env.action_space.high + env.action_space.low) / 2.0, dtype=torch.float32)
+        )
+
+    def forward(self, x):
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = torch.tanh(self.fc_mu(x))
+        return x * self.action_scale + self.action_bias
 
 
 def get_state_actions(program_optimizers, obs, env, args):
@@ -164,13 +187,17 @@ def run_synthesis(args: Args):
     # Actor is a learnable program
     program_optimizers = [ProgramOptimizer(args, env.observation_space.shape[0]) for i in range(env.action_space.shape[0])]
 
+    actor = Actor(env).to(device)
     qf1 = QNetwork(env).to(device)
     qf2 = QNetwork(env).to(device)
     qf1_target = QNetwork(env).to(device)
     qf2_target = QNetwork(env).to(device)
+    target_actor = Actor(env).to(device)
+    target_actor.load_state_dict(actor.state_dict())
     qf1_target.load_state_dict(qf1.state_dict())
     qf2_target.load_state_dict(qf2.state_dict())
     q_optimizer = optim.Adam(list(qf1.parameters()) + list(qf2.parameters()), lr=args.learning_rate)
+    actor_optimizer = optim.Adam(list(actor.parameters()), lr=args.learning_rate)
 
     env.observation_space.dtype = np.float32
     rb = ReplayBuffer(
@@ -193,7 +220,11 @@ def run_synthesis(args: Args):
             action = env.action_space.sample()
         else:
             with torch.no_grad():
-                action = get_state_actions(program_optimizers, obs[None, :], env, args)[0]
+                action = actor(torch.Tensor(obs).to(device))
+                action += torch.normal(0, actor.action_scale * args.exploration_noise)
+                action = action.cpu().numpy().clip(env.action_space.low, env.action_space.high)
+
+                program_action = get_state_actions(program_optimizers, obs[None, :], env, args)[0]
 
         # TRY NOT TO MODIFY: execute the game and log data.
         next_obs, reward, termination, truncation, info = env.step(action)
@@ -225,13 +256,18 @@ def run_synthesis(args: Args):
             with torch.no_grad():
                 clipped_noise = (torch.randn_like(data.actions, device=device) * args.policy_noise).clamp(
                     -args.noise_clip, args.noise_clip
-                )
+                ) * target_actor.action_scale
 
                 # Go over all observations the buffer provides
                 next_state_actions = get_state_actions(program_optimizers, data.next_observations.detach().numpy(), env, args)
                 next_state_actions = torch.tensor(next_state_actions)
                 next_state_actions = (next_state_actions + clipped_noise).clamp(
                     env.action_space.low[0], env.action_space.high[0]).float()
+
+
+                next_state_actions = (target_actor(data.next_observations) + clipped_noise).clamp(
+                    env.action_space.low[0], env.action_space.high[0]
+                )
 
                 qf1_next_target = qf1_target(data.next_observations, next_state_actions)
                 qf2_next_target = qf2_target(data.next_observations, next_state_actions)
@@ -255,7 +291,13 @@ def run_synthesis(args: Args):
             #if global_step % args.program_grow_frequency == 0:
 
             # Optimize the program
-            if global_step >= args.learn_policy_starts and global_step % args.policy_frequency == 0:
+            if global_step % args.policy_frequency == 0:
+
+                actor_actions = actor(data.observations)
+                actor_loss = -qf1(data.observations, actor_actions).mean()
+                actor_optimizer.zero_grad()
+                actor_loss.backward()
+                actor_optimizer.step()
 
                 for p in program_optimizers:
                     #if p.pop_fitness > args.program_growth_threshold:
@@ -272,24 +314,26 @@ def run_synthesis(args: Args):
                 program_objective = (program_objective_1 + program_objective_2) * 0.5
                 program_objective.backward()
 
-                improved_actions = program_actions + 1*program_actions.grad
+                #improved_actions = program_actions + 1*program_actions.grad
 
-                RES.append(improved_actions[0].detach().numpy())
+                #RES.append(improved_actions[0].detach().numpy())
 
                 # Fit the program optimizers on all the action dimensions
                 states = data.observations.detach().numpy()
-                actions = improved_actions.detach().numpy()
+                #actions = improved_actions.detach().numpy()
+                actions = actor_actions.detach().numpy()
 
                 print('Best program:')
                 writer.add_scalar("losses/program_objective", program_objective.item(), global_step)
 
-                for action_index in range(env.action_space.shape[0]):
-                    program_optimizers[action_index].fit(states, actions[:, action_index])
-                    print(f"a[{action_index}] = {program_optimizers[action_index].get_best_solution_str()}")
-                    print(program_optimizers[action_index].best_solution)
-                    print(program_optimizers[action_index].best_fitness)
-                    gp_best_fitness += program_optimizers[action_index].best_fitness
-                    gp_pop_fitness += program_optimizers[action_index].pop_fitness
+                if global_step >= args.learn_program_starts:
+                    for action_index in range(env.action_space.shape[0]):
+                        program_optimizers[action_index].fit(states, actions[:, action_index])
+                        print(f"a[{action_index}] = {program_optimizers[action_index].get_best_solution_str()}")
+                        print(program_optimizers[action_index].best_solution)
+                        print(program_optimizers[action_index].best_fitness)
+                        gp_best_fitness += program_optimizers[action_index].best_fitness
+                        gp_pop_fitness += program_optimizers[action_index].pop_fitness
 
                 writer.add_scalar("GP/population_fitness", gp_best_fitness, global_step)
                 writer.add_scalar("GP/best_fitness", gp_pop_fitness, global_step)
@@ -297,6 +341,8 @@ def run_synthesis(args: Args):
                 gp_best_fitness = 0
 
             # update the target network
+            for param, target_param in zip(actor.parameters(), target_actor.parameters()):
+                target_param.data.copy_(args.tau * param.data + (1 - args.tau) * target_param.data)
             for param, target_param in zip(qf1.parameters(), qf1_target.parameters()):
                 target_param.data.copy_(args.tau * param.data + (1 - args.tau) * target_param.data)
             for param, target_param in zip(qf2.parameters(), qf2_target.parameters()):
