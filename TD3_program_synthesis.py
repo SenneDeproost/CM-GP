@@ -65,9 +65,9 @@ class Args:
     """the batch size of sample from the reply memory"""
     policy_noise: float = 0.2
     """the scale of policy noise"""
-    learning_starts: int = 2000
+    learning_starts: int = 0
     """timestep to start learning"""
-    policy_frequency: int = 100
+    policy_frequency: int = 1000 # 1000
     """the frequency of training policy (delayed)"""
     noise_clip: float = 0.5
     """noise clip parameter of the Target Policy Smoothing Regularization"""
@@ -75,14 +75,23 @@ class Args:
     # Parameters for the program optimizer
     num_individuals: int = 100
     num_genes: int = 1
-    num_eval_runs: int = 10
+    num_eval_runs: int = 1
 
-    program_grow_frequency: int = 5000
+    program_grow_frequency: int = 10000 # 10000
 
-    num_generations: int = 2
+    num_generations: int = 5
     num_parents_mating: int = 50
-    keep_parents: int = 50
-    mutation_percent_genes: int = 20
+    keep_parents: int = 0
+    #mutation_percent_genes: int = 0.01
+    mutation_probability: int = 0.01
+
+    #program_growth_threshold: float = 0
+    learn_policy_starts: int = 1
+
+
+    #mutation_percent_genes: int = 10 #10 ## 5
+    keep_elitism: int = 5 # 30
+
 
 
 def make_env(env_id, seed, idx, capture_video, run_name):
@@ -271,8 +280,9 @@ def run_synthesis(args: Args):
                 writer.add_scalar("losses/program_objective", program_objective.item(), global_step)
 
                 for action_index in range(env.action_space.shape[0]):
-                    program_optimizers[action_index].fit(states, actions[:, action_index])
-                    print(f"a[{action_index}] = {program_optimizers[action_index].get_best_solution_str()}")
+                    p = program_optimizers[action_index]
+                    p.fit(states, actions[:, action_index])
+                    print(f"a[{action_index}] = {p.get_best_solution_str()}, from genome {p.best_solution}")
 
             # update the target network
             for param, target_param in zip(qf1.parameters(), qf1_target.parameters()):
