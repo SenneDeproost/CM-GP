@@ -88,7 +88,6 @@ class Args:
     #program_growth_threshold: float = 0
     learn_policy_starts: int = 1
 
-
     #mutation_percent_genes: int = 10 #10 ## 5
     keep_elitism: int = 5 # 30
 
