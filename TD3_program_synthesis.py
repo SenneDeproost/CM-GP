@@ -67,20 +67,24 @@ class Args:
     """the scale of policy noise"""
     learning_starts: int = 2000
     """timestep to start learning"""
-    policy_frequency: int = 100
+    policy_frequency: int = 1000
     """the frequency of training policy (delayed)"""
     noise_clip: float = 0.5
     """noise clip parameter of the Target Policy Smoothing Regularization"""
 
     # Parameters for the program optimizer
     num_individuals: int = 100
-    num_genes: int = 5
-    num_eval_runs: int = 10
+    num_genes: int = 1
+    num_eval_runs: int = 5
 
-    num_generations: int = 50
+    program_grow_frequency: int = 5000
+
+    num_generations: int = 100
     num_parents_mating: int = 50
-    keep_parents: int = 50
-    mutation_percent_genes: int = 20
+    keep_parents: int = 0
+    #mutation_percent_genes: int = 20
+    mutation_probability: int = 0.05
+    keep_elitism: int = 5
 
 
 def make_env(env_id, seed, idx, capture_video, run_name):
@@ -239,6 +243,12 @@ def run_synthesis(args: Args):
             q_optimizer.zero_grad()
             qf_loss.backward()
             q_optimizer.step()
+
+            # Grow genomes
+            if global_step % args.program_grow_frequency == 0:
+                for p in program_optimizers:
+                    p.increase_individual_size()
+                    print(f'New program shape: {p.initial_population.shape}')
 
             # Optimize the program
             if global_step % args.policy_frequency == 0:

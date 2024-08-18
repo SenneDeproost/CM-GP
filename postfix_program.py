@@ -50,7 +50,7 @@ OPERATORS = [
     Operator('<', 2, lambda a, b: from_bool(a < b)),
     Operator('>', 2, lambda a, b: from_bool(a > b)),
     Operator('?', 3, lambda cond, a, b: a if cond > 0.0 else b),
-    Operator('<end>', 0, None),
+    #Operator('<end>', 0, None),
 ]
 NUM_OPERATORS = len(OPERATORS)
 FIND_X_REGEX = re.compile('\[(\d+)\]')

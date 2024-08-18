@@ -26,6 +26,11 @@ class ProgramOptimizer:
         program = Program(genome=self.best_solution)
         return program(state)
 
+    def increase_individual_size(self):
+        s = self.initial_population.shape
+        s = (s[0], s[1] + 2)
+        self.initial_population = np.resize(self.initial_population, s)
+
     def get_best_solution_str(self):
         program = Program(genome=self.best_solution)
         return program.to_string([0.0] * self.state_dim)
@@ -53,7 +58,7 @@ class ProgramOptimizer:
         avg_error = (sum_error / (batch_size * self.config.num_eval_runs))
         avg_lookedat = (sum_lookedat / (batch_size * self.config.num_eval_runs))
 
-        fitness = -avg_error / (avg_lookedat + 0.01) # FIXME: random equation
+        fitness = -avg_error #/ (avg_lookedat + 0.01) # FIXME: random equation
 
         return fitness
 
@@ -72,10 +77,11 @@ class ProgramOptimizer:
             num_generations=self.config.num_generations,
             num_parents_mating=self.config.num_parents_mating,
             keep_parents=self.config.keep_parents,
-            mutation_percent_genes=self.config.mutation_percent_genes,
+            #mutation_percent_genes=self.config.mutation_percent_genes,
+            mutation_probability=self.config.mutation_probability,
 
             # Work with non-deterministic objective functions
-            keep_elitism=0,
+            keep_elitism=self.config.keep_elitism,
             save_solutions=False,
             save_best_solutions=False,
 
@@ -91,6 +97,9 @@ class ProgramOptimizer:
 
         # Allow the population to survive
         self.initial_population = self.ga_instance.population
+
+        print(self.initial_population)
+        print(self.ga_instance.best_solutions_fitness)
 
         # Best solution for now
         self.best_solution = self.ga_instance.best_solution()[0]
