@@ -1,0 +1,3 @@
+[submodule "envs/edugym"]
+	path = envs/edugym
+	url = git@github.com:RLG-Leiden/edugym.git
