@@ -35,3 +35,15 @@ register(
     entry_point='envs.simple_envs:SimpleGoalEnvSpeed',
     kwargs={}
 )
+
+register(
+    id="Roadrunner-v0",
+    entry_point="edugym.envs:RoadrunnerEnv",
+    max_episode_steps=300,
+)
+
+register(
+    id="RoadrunnerContinuous-v0",
+    entry_point="edugym.envs:RoadrunnerEnvContinuous",
+    max_episode_steps=300,
+)

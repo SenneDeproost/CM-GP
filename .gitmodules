@@ -1,3 +1,6 @@
 [submodule "envs/edugym"]
 	path = envs/edugym
 	url = git@github.com:RLG-Leiden/edugym.git
+[submodule "envs/space-wrappers"]
+	path = envs/space-wrappers
+	url = git@github.com:ngc92/space-wrappers.git
