@@ -67,17 +67,20 @@ OPERATORS = [
 
 OPERATORS = [
     ID,
-    Operator('select', 3, lambda a, iftrue, iffalse: iftrue if a > 0 else iffalse),
+    Operator('select', 4, lambda a, b, iftrue, iffalse: iftrue if a > b else iffalse),
     ID,
     Operator('ACCELERATE_↑', 0, lambda :  0.1),
     Operator('ACCELERATE_↑↑', 0, lambda :  0.5),
     Operator('ACCELERATE_↑↑↑', 0, lambda :  1.0),
     Operator('DECELERATE_↓', 0, lambda :  -0.1),
-    Operator('DECELERATE_↓↓', 0, lambda :  -0.5),
-    Operator('DECELERATE_↓↓↓', 0, lambda : -1.0),
+    #Operator('DECELERATE_↓↓', 0, lambda :  -0.5),
+    #Operator('DECELERATE_↓↓↓', 0, lambda : -1.0),
     ID,
     Operator('+', 2, lambda a, b: a + b),
     Operator('*', 2, lambda a, b: a * b),
+    Operator('min', 2, lambda a, b: min(a, b)),
+    Operator('max', 2, lambda a, b: max(a, b)),
+    Operator('sin', 1, lambda a: math.sin(a)),
     ID
 ]
 
@@ -119,9 +122,9 @@ class Program:
                 result = f"{operator.name}({operands[0]}, {operands[1]})"
             elif len(operands) == 2:
                 result = f"({operands[0]} {operator.name} {operands[1]})"
-            elif len(operands) == 3:
+            elif len(operands) == 4:
                 # Ternary operator
-                result = f"({operands[1]} if {operands[0]} > 0 else {operands[2]})"
+                result = f"({operands[2]} if {operands[0]} > {operands[1]} else {operands[3]})"
 
             stack.append(result)
 
@@ -143,7 +146,7 @@ class Program:
             result = operator.function(*operands)
             stack.append(result)
 
-        AVG = 10
+        AVG = 30
         x = 0.0
 
         for i in range(AVG):
@@ -188,6 +191,7 @@ class Program:
             # Now, cast token to an int, but with stochasticity so that a value
             # close to x.5 is always cast to x, but other values may end up on x+1 or x-1
             token = int(token + (np.random.random() - 0.5))
+            #token = int(token)
 
             # Operators
             operator_index = (-token - 1) % len(OPERATORS)
