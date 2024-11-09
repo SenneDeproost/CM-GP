@@ -1,8 +1,10 @@
 import math
 import numpy as np
 
+
 def sgn(x):
     return -1.0 if x < 0.0 else 1.0
+
 
 class Operator:
     def __init__(self, name, num_operands, function):
@@ -13,12 +15,13 @@ class Operator:
     def __str__(self):
         return self.name
 
+
 ID = Operator('id', 1, lambda a: a)
 
-#OPERATORS = [
+# OPERATORS = [
 #    Operator('throttle_north', 1)
 #    Operator('select', 3, lambda a, iftrue, iffalse: iftrue if a > 0 else iffalse),
-#]
+# ]
 
 
 OPERATORS = [
@@ -67,37 +70,44 @@ OPERATORS = [
 
 OPERATORS = [
     ID,
-    Operator('select', 3, lambda a, iftrue, iffalse: iftrue if a > 0 else iffalse),
+    Operator('select', 4, lambda a, b, iftrue, iffalse: iftrue if a.all() > b.all() else iffalse),
     ID,
-    Operator('ACCELERATE_↑', 0, lambda :  0.1),
-    Operator('ACCELERATE_↑↑', 0, lambda :  0.5),
-    Operator('ACCELERATE_↑↑↑', 0, lambda :  1.0),
-    Operator('DECELERATE_↓', 0, lambda :  -0.1),
-    Operator('DECELERATE_↓↓', 0, lambda :  -0.5),
-    Operator('DECELERATE_↓↓↓', 0, lambda : -1.0),
+    Operator('STEP_UP', 0, lambda: np.array((0, 1))),
+    Operator('STEP_DOWN', 0, lambda: np.array((0, -1))),
+    Operator('STEP_LEFT', 0, lambda: np.array((-1, 0))),
+    Operator('STEP_RIGHT', 0, lambda: np.array((1, 0))),
+    Operator('STILL', 0, lambda: np.array((0, 0))),
+    # Operator('DECELERATE_↓↓', 0, lambda :  -0.5),
+    # Operator('DECELERATE_↓↓↓', 0, lambda : -1.0),
     ID,
     Operator('+', 2, lambda a, b: a + b),
     Operator('*', 2, lambda a, b: a * b),
+    Operator('min', 2, lambda a, b: min(a.all(), b.all())),
+    Operator('max', 2, lambda a, b: max(a.all(), b.all())),
+    #Operator('sin', 1, lambda a: math.sin(a)),
     ID
 ]
 
-#OPERATORS = [
+# OPERATORS = [
 #    Operator('abs', 1, lambda a: abs(a)),
 #    ID,
 #    Operator('-abs', 1, lambda a: -abs(a)),
-#]
+# ]
 
 
 NUM_OPERATORS = len(OPERATORS)
 ID_INDEX = [i for i in range(NUM_OPERATORS) if OPERATORS[i] is ID][0]
 
+
 class InvalidProgramException(Exception):
     pass
 
+
 class Program:
-    def __init__(self, genome, state_dim, low, high):
+    def __init__(self, genome, state_dim, action_dim, low, high):
         self.tokens = genome
         self.state_dim = state_dim
+        self.action_dim = action_dim
         self.low = low
         self.high = high
 
@@ -119,9 +129,9 @@ class Program:
                 result = f"{operator.name}({operands[0]}, {operands[1]})"
             elif len(operands) == 2:
                 result = f"({operands[0]} {operator.name} {operands[1]})"
-            elif len(operands) == 3:
+            elif len(operands) == 4:
                 # Ternary operator
-                result = f"({operands[1]} if {operands[0]} > 0 else {operands[2]})"
+                result = f"({operands[2]} if {operands[0]} > {operands[1]} else {operands[3]})"
 
             stack.append(result)
 
@@ -143,8 +153,8 @@ class Program:
             result = operator.function(*operands)
             stack.append(result)
 
-        AVG = 10
-        x = 0.0
+        AVG = 30
+        x = np.zeros(self.action_dim)
 
         for i in range(AVG):
             x += self._visit_program(
@@ -161,13 +171,13 @@ class Program:
 
     def num_inputs_looked_at(self):
         def on_literal_func(stack, token):
-            stack.append(set([]))   # Literals don't look at inputs
+            stack.append(set([]))  # Literals don't look at inputs
 
         def on_operator_func(stack, operator, operands):
             looked_at = set([])
 
             for operand in operands:
-                looked_at.update(operand)       # Operands may look at inputs
+                looked_at.update(operand)  # Operands may look at inputs
 
             stack.append(looked_at)
 
@@ -188,6 +198,7 @@ class Program:
             # Now, cast token to an int, but with stochasticity so that a value
             # close to x.5 is always cast to x, but other values may end up on x+1 or x-1
             token = int(token + (np.random.random() - 0.5))
+            # token = int(token)
 
             # Operators
             operator_index = (-token - 1) % len(OPERATORS)
@@ -195,7 +206,7 @@ class Program:
 
             # Pop the operands
             operands = []
-            
+
             for index in range(operator.num_operands):
                 if len(stack) == 0:
                     raise InvalidProgramException()
@@ -209,6 +220,7 @@ class Program:
 
         return stack[-1]
 
+
 def dbg_average():
     # Compute the average output of programs
     values = []
@@ -216,7 +228,7 @@ def dbg_average():
     for l in range(20):
         for i in range(100000):
             dna = np.random.random((l,))
-            dna *= -(NUM_OPERATORS + 1)                 # Tokens between -NUM_OPERATORS - state_dim and 0
+            dna *= -(NUM_OPERATORS + 1)  # Tokens between -NUM_OPERATORS - state_dim and 0
             p = Program(dna, 1, -1.0, 1.0)
 
             try:
@@ -225,6 +237,7 @@ def dbg_average():
                 values.append(0.0)
 
         print('Average output of random programs of size', l, ':', np.mean(values), '+-', np.std(values))
+
 
 def dbg_random_functions():
     import cv2
@@ -236,7 +249,7 @@ def dbg_random_functions():
         data = np.zeros((20, 20), dtype=np.float32)
 
         dna = np.random.random((5,))
-        dna *= -(NUM_OPERATORS + 1)                 # Tokens between -NUM_OPERATORS - state_dim and 0
+        dna *= -(NUM_OPERATORS + 1)  # Tokens between -NUM_OPERATORS - state_dim and 0
         p = Program(dna, 2, 0.0, 1.0)
 
         print(p.to_string())
@@ -253,6 +266,7 @@ def dbg_random_functions():
         image = cv2.resize(image, (200, 200))
         cv2.imshow('image', image)
         cv2.waitKey(100)
+
 
 if __name__ == '__main__':
     dbg_random_functions()

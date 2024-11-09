@@ -33,9 +33,9 @@ class Args:
     """if toggled, `torch.backends.cudnn.deterministic=False`"""
     cuda: bool = False
     """if toggled, cuda will be enabled by default"""
-    track: bool = False
+    track: bool = True
     """if toggled, this experiment will be tracked with Weights and Biases"""
-    wandb_project_name: str = "cleanRL_program_synth"
+    wandb_project_name: str = "CM-GP trials"
     """the wandb's project name"""
     wandb_entity: str = None
     """the entity (team) of wandb's project"""
@@ -49,7 +49,7 @@ class Args:
     """the user or org name of the model repository from the Hugging Face Hub"""
 
     # Algorithm specific arguments
-    env_id: str = "SimpleGoalSpeed-v0"
+    env_id: str = "SimpleGoal-v0"
     """the id of the environment"""
     total_timesteps: int = 1000000000
     """total timesteps of the experiments"""
@@ -61,11 +61,11 @@ class Args:
     """the discount factor gamma"""
     tau: float = 0.005
     """target smoothing coefficient (default: 0.005)"""
-    batch_size: int = 256
+    batch_size: int = 124
     """the batch size of sample from the reply memory"""
     policy_noise: float = 0.1
     """the scale of policy noise"""
-    learning_starts: int = 1000
+    learning_starts: int = 100
     """timestep to start learning"""
     policy_frequency: int = 128
     """the frequency of training policy (delayed)"""
@@ -73,11 +73,11 @@ class Args:
     """noise clip parameter of the Target Policy Smoothing Regularization"""
 
     # Parameters for the program optimizer
-    num_individuals: int = 100
-    num_genes: int = 20
+    num_individuals: int = 50
+    num_genes: int = 10
 
-    num_generations: int = 30
-    num_parents_mating: int = 80
+    num_generations: int = 10
+    num_parents_mating: int = 40
     mutation_probability: float = 0.05
 
 def make_env(env_id, seed, idx, capture_video, run_name):
@@ -111,7 +111,7 @@ def get_state_actions(program_optimizers, obs, env, args):
     for i, o in enumerate(obs):
         action = np.zeros(env.action_space.shape, dtype=np.float32)
 
-        for action_index in range(env.action_space.shape[0]):
+        for action_index in range(1):
             action[action_index] = program_optimizers[action_index].get_action(o)
 
         program_actions.append(action)
@@ -155,11 +155,12 @@ def run_synthesis(args: Args):
     program_optimizers = [ProgramOptimizer(
         args,
         env.observation_space,
+        env.action_space,
         env.action_space.low[i],
         env.action_space.high[i]
     ) for i in range(env.action_space.shape[0])]
 
-    for action_index in range(env.action_space.shape[0]):
+    for action_index in range(1):
         print(f"a[{action_index}] = {program_optimizers[action_index].get_best_solution_str()}")
 
     qf1 = QNetwork(env).to(device)
@@ -252,7 +253,7 @@ def run_synthesis(args: Args):
                 cur_program_actions = np.copy(orig_program_actions)
                 print('BEFORE ACTIONS', orig_program_actions[0])
 
-                for i in range(500):
+                for i in range(100):
                     program_actions = torch.tensor(cur_program_actions, requires_grad=True)
 
                     program_objective_1 = qf1(data.observations, program_actions).mean()
@@ -276,7 +277,7 @@ def run_synthesis(args: Args):
                 print('Best program:')
                 writer.add_scalar("losses/program_objective", program_objective.item(), global_step)
 
-                for action_index in range(env.action_space.shape[0]):
+                for action_index in range(1):
                     program_optimizers[action_index].fit(states, actions[:, action_index])
                     print(f"a[{action_index}] = {program_optimizers[action_index].get_best_solution_str()}")
 

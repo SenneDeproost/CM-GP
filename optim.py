@@ -12,9 +12,10 @@ def print_fitness(ga, fitnesses):
     print('F', fitnesses.mean(), file=sys.stderr)
 
 class ProgramOptimizer:
-    def __init__(self, config, state_space, low, high):
+    def __init__(self, config, state_space, action_space, low, high):
         self.config = config
         self.state_dim = state_space.shape[0]
+        self.action_dim = action_space.shape[0]
         self.low = low
         self.high = high
 
@@ -29,7 +30,7 @@ class ProgramOptimizer:
         self.fitness_pop = [[] for i in range(self.config.num_individuals)]
 
     def get_action(self, state):
-        program = Program(self.best_solution, self.state_dim, self.low, self.high)
+        program = Program(self.best_solution, self.state_dim, self.action_dim, self.low, self.high)
 
         try:
             return program(state)
@@ -37,7 +38,7 @@ class ProgramOptimizer:
             return np.random.normal()
 
     def get_best_solution_str(self):
-        program = Program(self.best_solution, self.state_dim, self.low, self.high)
+        program = Program(self.best_solution, self.state_dim, self.action_dim, self.low, self.high)
 
         try:
             return program.to_string()
@@ -45,7 +46,7 @@ class ProgramOptimizer:
             return '<invalid program>'
 
     def _fitness_func(self, ga_instance, solution, solution_idx):
-        program = Program(solution, self.state_dim, self.low, self.high)
+        program = Program(solution, self.state_dim, self.action_dim, self.low, self.high)
 
         try:
             # Num input variables looked at
@@ -71,7 +72,7 @@ class ProgramOptimizer:
         return fitness
 
     def _fitness_func_env(self, ga_instance, solution, solution_idx):
-        program = Program(solution, self.state_dim, self.low, self.high)
+        program = Program(solution, self.state_dim, self.action_dim, self.low, self.high)
 
         fitness = 0.0
         l = 0
@@ -107,16 +108,17 @@ class ProgramOptimizer:
             mutation_probability=self.config.mutation_probability,
 
             # Work with non-deterministic objective functions
-            keep_elitism=0,
+            keep_elitism=5,
             save_solutions=False,
             save_best_solutions=False,
             random_mutation_min_val=-10,
             random_mutation_max_val=10,
+            #gene_space={'low': 99, 'high': 0.001},
 
             parent_selection_type="sss",
             crossover_type="single_point",
             mutation_type="random",
-            parallel_processing=["process", 20],
+            #parallel_processing=["process", 20],
 
             on_fitness=print_fitness
         )
