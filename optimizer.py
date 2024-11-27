@@ -6,12 +6,10 @@ import ctypes
 import pyrallis
 from dataclasses import dataclass
 
-from postfix_program import *
-
 def print_fitness(ga, fitnesses):
     print('F', fitnesses.mean(), file=sys.stderr)
 
-class ProgramOptimizer:
+class PyGADOptimizer:
     def __init__(self, config, state_space, low, high):
         self.config = config
         self.state_dim = state_space.shape[0]
