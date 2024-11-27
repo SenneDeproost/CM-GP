@@ -6,12 +6,17 @@
 
 from typing import List, Callable, Union
 import numpy as np
+
+from program import operators
 from program.operators import Operator, SIMPLE_OPERATORS
 
 
 # Abstract for different types of GeneSpace
 class GeneSpace:
     def __init__(self, gene_range: tuple[float, float]) -> None:
+
+        assert gene_range[0] < gene_range[1], 'Invalid gene space range'
+
         self.gene_range = gene_range
 
     # Sampling method within the range of the space
@@ -23,14 +28,18 @@ class GeneSpace:
             raise ValueError(f'Unknown sampling strategy {strategy}')
 
     # Different types of rounding possible
-    def _round(self, value: float, type: str = 'regular') -> int:
+    def _round(self, value: float, mode: str = 'regular') -> int:
 
-        if type == 'regular':
-            return round(value)
-        elif type == 'stochastic':
-            return int(value + (np.random.random() - 0.5))
+        if mode == 'regular':
+            res = round(value)
+        elif mode == 'stochastic':
+            res = int(value + (np.random.random() - 0.5))
         else:
-            raise ValueError(f'Unknown rounding type: {type}')
+            raise ValueError(f'Unknown rounding type: {mode}')
+
+        assert self.gene_range[0] <= res <= self.gene_range[1], 'Rounding value out of gene range'
+
+        return res
 
 
 # Gene Space for Operators
@@ -38,19 +47,28 @@ class OperatorGeneSpace(GeneSpace):
     def __init__(self, gene_range: tuple[float, float], operators: List[Operator]) -> None:
         super().__init__(gene_range)
         self.operators = operators
+        self.n_inputs = self.gene_range[0] + len(operators)
 
     # Return corresponding realization from the gene space
-    def __call__(self, value: float, *args, **kwargs) -> Union[float, Operator]:
+    def __getitem__(self, value: float) -> Union[float, Operator]:
 
         # Non-constant encoded as negative value
         if value < 0:
             index = self._round(-value)
-            return self.operators[index]
+
+            # Value is index in input space
+            if index > len(self.operators) - 1:  # We negated the index, so we need >
+                return index
+            # Value is an operator
+            else:
+                return self.operators[index]
+
+        # Constant
         else:
             return value
 
     def __str__(self) -> str:
-        return f'Operator space {self.gene_range[0]}->{self.gene_range[1]} with {len(self.operators)} operator'
+        return f'Operator space {self.gene_range[0]}->{self.gene_range[1]} with {len(self.operators)} operator and '
 
 
 # Gene space for Cartesian coordinates
@@ -59,7 +77,7 @@ class CartesianGeneSpace(GeneSpace):
         super().__init__(gene_range)
 
     # Just return the value
-    def __call__(self, value: float, *args, **kwargs) -> float:
+    def __getitem__(self, value: float, *args, **kwargs) -> float:
         return self._round(value)
 
     def __str__(self) -> str:
@@ -111,30 +129,53 @@ class Population:
 
 # Population for Cartesian representation
 class CartesianPopulation(Population):
-    def __init__(self, n_individuals: int, n_genes: int, gene_ranges: List[tuple[float, float]],
-                 operators: List[Operator]) -> None:
-        # Check if the amount of genes is a multiple of 3 (X, Y, operator)
-        assert n_genes % 4 == 0, "Amount of genes must be divisible by 4"
-        assert len(gene_ranges) % 4 == 0, "Number of gene ranges must be divisible by 4"
+    def __init__(self, n_individuals: int, n_nodes: int, n_inputs: int,
+                 max_arity: int, operators: List[Operator], max_const: float = 9999) -> None:
+        self.n_individuals = n_individuals
+        self.n_nodes = n_nodes
+        self.n_inputs = n_inputs
+        self.n_genes = 2 * n_nodes + max_arity
+        self.max_arity = max_arity
+        self.max_const = max_const
 
-        # GCP encoding:
-        # Node based:
-        # gene 0: node X
-        # gene 1: node Y
-        # gene 2: function
-        # gene 3: output node
+        # GCP encoding for N nodes with n_outputs and max_arity
+        # gene 0 -> N-1: function
+        # gene N -> 2N*max_arity - 1: connections made between max_arity nodes (-1 indication no connection)
+        # gene 2N*max_arity -> 2N*max_arity+n_outputs - 1: output nodes
 
-        self.gene_ranges = gene_ranges
-        super().__init__(n_individuals, n_genes, list([
-            CartesianGeneSpace(self.gene_ranges[0]),
-            CartesianGeneSpace(self.gene_ranges[1]),
-            OperatorGeneSpace(self.gene_ranges[2], operators),
-            CartesianGeneSpace(self.gene_ranges[3])]))
+        # ---> Translatable as:
+        # Node represented by
+        # gene 0: function
+        # gene 1: output? --> Differs from CGPAX
+        # gene 2 to 2+max_arity-1 -> determined the arity of operator in set with the highest number of operands
+
+        operator_range = (-len(operators) - n_inputs, self.max_const)
+        output_range = (0, 1)
+        connection_range = (0, n_nodes - 1)
+
+        # Create population from different gene spaces
+        super().__init__(n_individuals,
+                         self.n_genes,
+                         list([
+                             OperatorGeneSpace(operator_range, operators),      # Function
+                             CartesianGeneSpace(output_range),                  # Binary indicator if node is output
+                             *[CartesianGeneSpace(connection_range) for _ in
+                               range(max_arity)]]))                             # Connections between nodes
+
+    def __str__(self) -> str:
+        return f'Cartesian pop with {self.n_individuals} individuals of genome length {self.n_genes}'
 
 
 if __name__ == '__main__':
-    pop = CartesianPopulation(10,
-                              16,
-                              [(.0, 10.0), (.0, 10.0), (-1.0, 1.0), (0., 10.0)],
+    # Gene space test
+    gs = OperatorGeneSpace((-5, 5), SIMPLE_OPERATORS)
+    print(gs[-0.4])
+    print(gs[-5])
+
+    # Population test
+    pop = CartesianPopulation(n_individuals=10,
+                              n_nodes=5,
+                              n_inputs=3,
+                              max_arity=2,
                               operators=SIMPLE_OPERATORS)
     print(pop)

@@ -10,3 +10,5 @@ videos/
 wandb/
 
 .DS_Store
+
+_old/
