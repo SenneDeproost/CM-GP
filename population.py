@@ -157,10 +157,10 @@ class CartesianPopulation(Population):
         super().__init__(n_individuals,
                          self.n_genes,
                          list([
-                             OperatorGeneSpace(operator_range, operators),      # Function
-                             CartesianGeneSpace(output_range),                  # Binary indicator if node is output
+                             OperatorGeneSpace(operator_range, operators),  # Function
+                             CartesianGeneSpace(output_range),  # Binary indicator if node is output
                              *[CartesianGeneSpace(connection_range) for _ in
-                               range(max_arity)]]))                             # Connections between nodes
+                               range(max_arity)]]))  # Connections between nodes
 
     def __str__(self) -> str:
         return f'Cartesian pop with {self.n_individuals} individuals of genome length {self.n_genes}'
