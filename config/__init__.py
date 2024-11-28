@@ -70,13 +70,24 @@ class OptimizerConfig:
     # Configuration for type of program
     program: Union[CartesianConfig] = field(default=CartesianConfig)
     # Number of individuals in population
-    n_individuals: int = field(default=10)
+    n_individuals: int = field(default=100)
     # Number of generations
     n_generations: int = field(default=10)
     # Number of parents mating
-    n_parents_mating: int = field(default=2)
+    n_parents_mating: int = field(default=90)
     # Probability of gene mutation
     gene_mutation_prob: float = field(default=0.05)
+    # How many elites to keep
+    elitism: int = field(default=5)
+    # Type of mutation
+    mutation: str = field(default='random')
+    # Range of mutation values
+    mutation_val: tuple[float, float] = field(default=(-999.0, 999.0))
+    # Type of crossover
+    crossover: str = field(default='single_point')
+    # Type of parent selection
+    parent_selection: str = field(default='sss')
+
 
 
 @dataclass
