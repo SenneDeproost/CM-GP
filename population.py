@@ -6,6 +6,8 @@
 
 from typing import List, Callable, Union
 import numpy as np
+from config import CartesianConfig, OptimizerConfig
+import gymnasium as gym
 
 from program import operators
 from program.operators import Operator, SIMPLE_OPERATORS
@@ -129,14 +131,15 @@ class Population:
 
 # Population for Cartesian representation
 class CartesianPopulation(Population):
-    def __init__(self, n_individuals: int, n_nodes: int, n_inputs: int,
-                 max_arity: int, operators: List[Operator], max_const: float = 9999) -> None:
-        self.n_individuals = n_individuals
-        self.n_nodes = n_nodes
-        self.n_inputs = n_inputs
-        self.n_genes = 2 * n_nodes + max_arity
-        self.max_arity = max_arity
-        self.max_const = max_const
+    def __init__(self,
+                 config: OptimizerConfig = OptimizerConfig(),
+                 operators: List[Operator] = SIMPLE_OPERATORS,
+                 state_space: gym.Space = None) -> None:
+        self.config = config.program
+        self.optim_config = config
+        self.n_genes = 2 * self.config.n_nodes + self.config.max_node_arity
+        self.state_space = state_space
+        self.n_inputs = np.prod(state_space.shape)
 
         # GCP encoding for N nodes with n_outputs and max_arity
         # gene 0 -> N-1: function
@@ -149,18 +152,18 @@ class CartesianPopulation(Population):
         # gene 1: output? --> Differs from CGPAX
         # gene 2 to 2+max_arity-1 -> determined the arity of operator in set with the highest number of operands
 
-        operator_range = (-len(operators) - n_inputs, self.max_const)
+        operator_range = (-len(operators) - self.n_inputs, self.config.max_constant)
         output_range = (0, 1)
-        connection_range = (0, n_nodes - 1)
+        connection_range = (0, self.config.n_nodes - 1)
 
         # Create population from different gene spaces
-        super().__init__(n_individuals,
+        super().__init__(config.n_individuals,
                          self.n_genes,
                          list([
                              OperatorGeneSpace(operator_range, operators),  # Function
                              CartesianGeneSpace(output_range),  # Binary indicator if node is output
                              *[CartesianGeneSpace(connection_range) for _ in
-                               range(max_arity)]]))  # Connections between nodes
+                               range(self.config.max_node_arity)]]))  # Connections between nodes
 
     def __str__(self) -> str:
         return f'Cartesian pop with {self.n_individuals} individuals of genome length {self.n_genes}'
@@ -173,9 +176,9 @@ if __name__ == '__main__':
     print(gs[-5])
 
     # Population test
-    pop = CartesianPopulation(n_individuals=10,
-                              n_nodes=5,
-                              n_inputs=3,
-                              max_arity=2,
-                              operators=SIMPLE_OPERATORS)
+    config = OptimizerConfig()
+    env = gym.make('CartPole-v1')
+    env.reset()
+    space = env.observation_space
+    pop = CartesianPopulation(config, SIMPLE_OPERATORS, space)
     print(pop)
