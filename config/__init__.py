@@ -1,8 +1,13 @@
+# +++ CM-GP/config +++
+#
+# Configuration constructors
+#
+# 28/11/2024 - Senne Deproost
+
 import os
 from dataclasses import dataclass, field
 import pyrallis
-from typing import Any, Dict, List, Union
-
+from typing import Union
 import yaml
 
 
@@ -17,12 +22,14 @@ class WandbConfig:
     # Wandb entity name
     entity: str = field(default=None)
 
+
 @dataclass
 class HuggingFaceConfig:
     # Upload model to huggingface
     upload: bool = field(default=False)
     # Huggingface entity name
     entity: str = field(default=None)
+
 
 @dataclass
 class LogConfig:
@@ -40,6 +47,7 @@ class LogConfig:
     # HuggingFace configuration
     huggingface: HuggingFaceConfig = field(default_factory=HuggingFaceConfig)
 
+
 @dataclass
 class CartesianConfig:
     """Configuration for Cartesian graph based programs"""
@@ -50,6 +58,10 @@ class CartesianConfig:
     n_nodes: int = field(default=6)
     # Number maximum arity over the set of operators
     max_node_arity: int = field(default=2)
+    # Highest number for constant
+    max_constant: float = field(default=20)
+
+
 
 @dataclass
 class OptimizerConfig:
@@ -59,14 +71,13 @@ class OptimizerConfig:
     program: Union[CartesianConfig] = field(default=CartesianConfig)
     # Number of individuals in population
     n_individuals: int = field(default=10)
-    # Number of genomes per individual
-    n_genomes: int = field(default=12)
     # Number of generations
     n_generations: int = field(default=10)
     # Number of parents mating
     n_parents_mating: int = field(default=2)
     # Probability of gene mutation
     gene_mutation_prob: float = field(default=0.05)
+
 
 @dataclass
 class AgentConfig:
@@ -91,6 +102,7 @@ class AgentConfig:
     # Noise clip of the Target Policy Smoothing Regularization
     noise_clip: float = field(default=0.5)
 
+
 @dataclass
 class TrainingConfig:
     """Config for a training session"""
@@ -99,6 +111,7 @@ class TrainingConfig:
     optimizer: OptimizerConfig = field(default_factory=OptimizerConfig)
     # Agent
     agent: AgentConfig = field(default_factory=AgentConfig)
+
 
 @dataclass
 class ExperimentConfig:
@@ -117,20 +130,20 @@ class ExperimentConfig:
     # CUDA use
     cuda: bool = field(default=False)
 
+
 if __name__ == "__main__":
     from pprint import pprint
 
     # Test ExperimentConfig
     exp = ExperimentConfig()
     print(exp)
-    with open('test.yaml', 'w+')as f:
+    with open('test.yaml', 'w+') as f:
         pyrallis.dump(exp, f)
         f.close()
     exp = ExperimentConfig
-    with open('test.yaml', 'r')as f:
+    with open('test.yaml', 'r') as f:
         data = yaml.load(f, Loader=yaml.SafeLoader)
         pprint(data)
         pyrallis.load(exp, f)
-
 
     os.remove('test.yaml')
