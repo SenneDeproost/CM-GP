@@ -3,6 +3,8 @@ from dataclasses import dataclass, field
 import pyrallis
 from typing import Any, Dict, List, Union
 
+import yaml
+
 
 @dataclass
 class WandbConfig:
@@ -11,7 +13,7 @@ class WandbConfig:
     # Wandb project name
     project: str = field(default='test')
     # Wandb tags
-    tags: tuple[str] = field(default_factory=tuple)
+    tags: tuple = field(default=tuple())
     # Wandb entity name
     entity: str = field(default=None)
 
@@ -116,9 +118,19 @@ class ExperimentConfig:
     cuda: bool = field(default=False)
 
 if __name__ == "__main__":
+    from pprint import pprint
 
     # Test ExperimentConfig
     exp = ExperimentConfig()
     print(exp)
     with open('test.yaml', 'w+')as f:
         pyrallis.dump(exp, f)
+        f.close()
+    exp = ExperimentConfig
+    with open('test.yaml', 'r')as f:
+        data = yaml.load(f, Loader=yaml.SafeLoader)
+        pprint(data)
+        pyrallis.load(exp, f)
+
+
+    os.remove('test.yaml')
