@@ -39,8 +39,6 @@ class GeneSpace:
         else:
             raise ValueError(f'Unknown rounding type: {mode}')
 
-        assert self.gene_range[0] <= res <= self.gene_range[1], 'Rounding value out of gene range'
-
         return res
 
 
@@ -53,6 +51,8 @@ class OperatorGeneSpace(GeneSpace):
 
     # Return corresponding realization from the gene space
     def __getitem__(self, value: float) -> Union[float, Operator]:
+
+        assert self.gene_range[0] <= value <= self.gene_range[1], 'Rounding value out of gene range'
 
         # Non-constant encoded as negative value
         if value < 0:
@@ -70,7 +70,7 @@ class OperatorGeneSpace(GeneSpace):
             return value
 
     def __str__(self) -> str:
-        return f'Operator space {self.gene_range[0]}->{self.gene_range[1]} with {len(self.operators)} operator and '
+        return f'Operator space {self.gene_range[0]}->{self.gene_range[1]} with {len(self.operators)} operators'
 
 
 # Gene space for Cartesian coordinates
@@ -91,12 +91,18 @@ class Genome:
     def __init__(self, n_genes: int, gene_spaces: List[GeneSpace]) -> None:
         self.n_genes = n_genes
         self.gene_spaces = gene_spaces
-        self.genome = np.zeros(n_genes)
+        self.genes = np.zeros(n_genes)
         self._init_genome()
 
     # Dunder for genome
     def __str__(self) -> str:
-        return str(f'{self.genome}')
+        return str(f'{self.genes}')
+
+    # Accessor to gene in genome, returning value from corresponding gene space
+    def express_gene(self, index: int) -> Union[float, Operator]:
+        gene_space = self.gene_spaces[index]
+        gene = self.genes[index]
+        return gene_space[gene]
 
     # Makes circular list possible
     def _get_gene_space(self, i):
@@ -104,9 +110,9 @@ class Genome:
 
     # Sample gene values from the respective gene spaces
     def _init_genome(self) -> None:
-        for i, gene in enumerate(self.genome):
+        for i, gene in enumerate(self.genes):
             gene_space = self._get_gene_space(i)
-            self.genome[i] = gene_space.sample()
+            self.genes[i] = gene_space.sample()
 
 
 # Abstract for population of individual genomes
@@ -141,6 +147,9 @@ class CartesianPopulation(Population):
         self.state_space = state_space
         self.n_inputs = np.prod(state_space.shape)
 
+        # List of individuals that have been realized into programs recently
+        self.realizations = []
+
         # GCP encoding for N nodes with n_outputs and max_arity
         # gene 0 -> N-1: function
         # gene N -> 2N*max_arity - 1: connections made between max_arity nodes (-1 indication no connection)
@@ -156,6 +165,9 @@ class CartesianPopulation(Population):
         output_range = (0, 1)
         connection_range = (0, self.config.n_nodes - 1)
 
+        # Check if correct amount of gene spaces are given
+        assert len(
+            self.gene_spaces) % 2 + self.config.max_node_arity, "Incorrect amount of gene spaces given for population"
         # Create population from different gene spaces
         super().__init__(config.n_individuals,
                          self.n_genes,
@@ -168,12 +180,37 @@ class CartesianPopulation(Population):
     def __str__(self) -> str:
         return f'Cartesian pop with {self.n_individuals} individuals of genome length {self.n_genes}'
 
+    # Dunder for individual genome access
+    def __getitem__(self, i):
+        return self.individuals[i].genes
+
+    # Get population as an array of genomes
+    def raw_genes(self) -> np.ndarray:
+        return np.array([i.genes for i in self.individuals])
+
+    # Get the realization of genome with index
+    def realize(self, index):
+        individual = self.individuals[index]
+        realization = individual.realize()
+        return realization
+
+    # Realize the whole population
+    def realize_all(self):
+        res = []
+        for individual in self.individuals:
+            individual.realize()
+        return res
+
 
 if __name__ == '__main__':
     # Gene space test
-    gs = OperatorGeneSpace((-5, 5), SIMPLE_OPERATORS)
+    gs = OperatorGeneSpace((-1, 0), SIMPLE_OPERATORS)
     print(gs[-0.4])
-    print(gs[-5])
+    print(gs[-1])
+
+    # Genome test
+    genome = Genome(n_genes=1, gene_spaces=[gs])
+    print(genome.express_gene(0))
 
     # Population test
     config = OptimizerConfig()
