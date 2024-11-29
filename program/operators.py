@@ -8,7 +8,6 @@ from typing import List, Callable, Union
 import math
 import numpy as np
 
-
 # Simple operator for Python function
 class Operator:
     def __init__(self, name: str, n_operands: int, function: Callable, print=Callable) -> None:
@@ -20,6 +19,19 @@ class Operator:
     # Dunder for operator name
     def __str__(self) -> str:
         return self.name
+
+# Abstraction for input variable ot the program
+class InputVar:
+    def __init__(self, index):
+        self.index = index
+
+    # Lambda that can access the given observation at any index
+    def __call__(self) -> callable:
+        return lambda input: input[self.index]
+
+    # Dunder for input variable index
+    def __str__(self) -> str:
+        return f'input_{self.index}'
 
 SIMPLE_OPERATORS = [
     Operator('+', 2, lambda a, b: a + b,
