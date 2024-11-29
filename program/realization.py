@@ -12,8 +12,9 @@ from networkx.classes import nodes
 from config import CartesianConfig
 from envs.simple_envs import SimpleGoalEnv
 from population import Genome, OperatorGeneSpace, CartesianGeneSpace
-from operators import Operator, SIMPLE_OPERATORS, InputVar
+from program.operators import Operator, SIMPLE_OPERATORS, InputVar
 from dataclasses import dataclass, asdict
+
 
 # Encoding
 # gene 0: function of the node
@@ -29,6 +30,7 @@ class Node:
 
     def __str__(self) -> str:
         return f' [ {self.function} | {self.output} | {self.connections} ]'
+
 
 # Program base class
 class Program:
@@ -55,7 +57,7 @@ class CartesianProgram(Program):
     # Dunder describing program
     # Todo: Correct printing of a program -> Maybe for the Program parent class?
     def __str__(self) -> str:
-        pass
+        return "test"
 
     # Realization of genome into callable
     def _realize(self, *input) -> List[Callable]:
@@ -74,10 +76,10 @@ class CartesianProgram(Program):
         # Go over each set of genes and capture node + indices of the output nodes
         for i in range(c.n_nodes):
             # Process
-            n_index = i*genes_per_node
-            f_index, o_index, c_indices = n_index, n_index+1, (n_index+2, n_index+1+c.max_node_arity)
-            operator = self.genome.express_gene(f_index)        # Gene space has list of operators that can be realized
-            output = self.genome.express_gene(o_index) == 1     # Translate binary value to boolean
+            n_index = i * genes_per_node
+            f_index, o_index, c_indices = n_index, n_index + 1, (n_index + 2, n_index + 1 + c.max_node_arity)
+            operator = self.genome.express_gene(f_index)  # Gene space has list of operators that can be realized
+            output = self.genome.express_gene(o_index) == 1  # Translate binary value to boolean
             connections = [int(self.genome.express_gene(j)) for j in c_indices]
 
             # Transform into node abstraction and put into accumulator
@@ -87,33 +89,40 @@ class CartesianProgram(Program):
                 nodes['output'].append(i)
 
         # Recursive function, traversing backwards in the graph
-        def traverse(index: int, acc=[]):
+        def traverse(index: int):
             node = nodes['all'][index]
-            for connection in node.connections:
-                traverse(connection, acc)
             fun = node.function
-            if isinstance(fun, Operator):
-                print('op')
-            elif isinstance(fun, InputVar):
-                print('in')
-            elif isinstance(fun, float):
-                print('fun')
-            else:
-                raise ValueError("Node from not allowed type")
 
+            _res = []
+
+            # If function is operator, check the amount of operands and backtrack as many connections
+            if isinstance(fun, Operator):
+                n_connections = fun.n_operands
+                operands = []
+
+                # Accumulate branches
+                for connection in node.connections[:n_connections]:
+                    operands.append(traverse(connection))
+
+                # Apply operator with operands
+                return fun.build(operands)
+
+            # If function is input variable, retrieve the value of the input variable
+            elif isinstance(fun, InputVar):
+                return fun()  # Lambda for accessing correct input
+
+            # If function is constant, return the value of the constant
+            elif isinstance(fun, float):
+                return float
+
+            else:
+                raise ValueError("Node with invalid type")
 
         # Start backtracking form each output node
-
-        node_res = []
-
         for output_idx in nodes['output']:
-            node_res.append(traverse(output_idx))
+            res.append(traverse(output_idx))
 
-
-
-
-
-        # Accumulate functions
+        return res
 
 
 if __name__ == "__main__":
@@ -124,20 +133,21 @@ if __name__ == "__main__":
 
     # Test for 3 nodes of 4 genes
     c = CartesianConfig()
-    c.n_nodes = 3
+    c.n_nodes = 4
     gs = [
         OperatorGeneSpace((-len(SIMPLE_OPERATORS) - input_size, c.max_constant), SIMPLE_OPERATORS),
         CartesianGeneSpace((0, 1)),
         *[CartesianGeneSpace((0, c.n_nodes)) for _ in range(c.max_node_arity)],
     ]
 
-    genome = Genome(n_genes=len(gs)*c.n_nodes, gene_spaces=gs)
+    genome = Genome(n_genes=len(gs) * c.n_nodes, gene_spaces=gs)
     print(genome)
 
     # Test valid program
-    genes = np.array([-14, 0.0, 1, 0.69991735,
-                      -5, 0.0, 0, 1.37312973,
-                      0, 1.0, 1, 2.34511764])
+    genes = np.array([-14, 0.0, 1, 0.69991735, #  [ input_0 | False | [1, 1] ]
+                      -5, 0.0, 0, 1.37312973,  #  [ ||      | False | [0, 1] ]
+                      5, 0.0, 0, 0,            #  [ 5.0     | False | [0, 0] ]
+                      0, 1.0, 1, 2.34511764])  #  [ +       | True  | [1, 2] ]
 
     genome = Genome(genes=genes, gene_spaces=gs)
 

@@ -17,7 +17,7 @@ from program.operators import Operator, SIMPLE_OPERATORS, InputVar
 class GeneSpace:
     def __init__(self, gene_range: tuple[float, float]) -> None:
 
-        assert gene_range[0] < gene_range[1], 'Invalid gene space range'
+        assert gene_range[0] <= gene_range[1], 'Invalid gene space range'
 
         self.gene_range = gene_range
 
@@ -55,7 +55,7 @@ class OperatorGeneSpace(GeneSpace):
         assert self.gene_range[0] <= value <= self.gene_range[1], 'Value out of gene range'
 
         # Non-constant encoded as negative value
-        if value < 0:
+        if value <= 0:
             index = self._round(-value)
 
             # Value is index in input space
