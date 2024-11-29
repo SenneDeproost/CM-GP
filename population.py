@@ -10,7 +10,7 @@ from config import CartesianConfig, OptimizerConfig
 import gymnasium as gym
 
 from program import operators
-from program.operators import Operator, SIMPLE_OPERATORS
+from program.operators import Operator, SIMPLE_OPERATORS, InputVar
 
 
 # Abstract for different types of GeneSpace
@@ -50,9 +50,9 @@ class OperatorGeneSpace(GeneSpace):
         self.n_inputs = self.gene_range[0] + len(operators)
 
     # Return corresponding realization from the gene space
-    def __getitem__(self, value: float) -> Union[float, Operator]:
+    def __getitem__(self, value: float) -> Union[float, Operator, InputVar]:
 
-        assert self.gene_range[0] <= value <= self.gene_range[1], 'Rounding value out of gene range'
+        assert self.gene_range[0] <= value <= self.gene_range[1], 'Value out of gene range'
 
         # Non-constant encoded as negative value
         if value < 0:
@@ -60,7 +60,8 @@ class OperatorGeneSpace(GeneSpace):
 
             # Value is index in input space
             if index > len(self.operators) - 1:  # We negated the index, so we need >
-                return index
+                index = index - len(self.operators)
+                return InputVar(index)
             # Value is an operator
             else:
                 return self.operators[index]
@@ -72,7 +73,7 @@ class OperatorGeneSpace(GeneSpace):
     def __str__(self) -> str:
         return f'Operator space {self.gene_range[0]}->{self.gene_range[1]} with {len(self.operators)} operators'
 
-
+# ToDo: Exclude own index to prevent infinite loop
 # Gene space for Cartesian coordinates
 class CartesianGeneSpace(GeneSpace):
     def __init__(self, gene_range: tuple[float, float]) -> None:
@@ -80,6 +81,7 @@ class CartesianGeneSpace(GeneSpace):
 
     # Just return the value
     def __getitem__(self, value: float, *args, **kwargs) -> float:
+        assert self.gene_range[0] <= value <= self.gene_range[1], 'Value out of gene range'
         return self._round(value)
 
     def __str__(self) -> str:
@@ -88,11 +90,21 @@ class CartesianGeneSpace(GeneSpace):
 
 # Genome of individual program
 class Genome:
-    def __init__(self, n_genes: int, gene_spaces: List[GeneSpace]) -> None:
+    def __init__(self, n_genes: int=-1, gene_spaces: List[GeneSpace]=None, genes: np.ndarray=None) -> None:
         self.n_genes = n_genes
         self.gene_spaces = gene_spaces
-        self.genes = np.zeros(n_genes)
-        self._init_genome()
+
+        # Check if genes are given or need to be initialized by the genome
+        if genes is not None:
+            self.genes = genes
+            self.n_genes = len(genes)
+        else:
+            self.genes = np.zeros(n_genes)
+            self._init_genome()
+
+    # Dunder for genome length
+    def __len__(self) -> int:
+        return self.n_genes
 
     # Dunder for genome
     def __str__(self) -> str:
@@ -100,7 +112,7 @@ class Genome:
 
     # Accessor to gene in genome, returning value from corresponding gene space
     def express_gene(self, index: int) -> Union[float, Operator]:
-        gene_space = self.gene_spaces[index]
+        gene_space = self._get_gene_space(index)  # Circular
         gene = self.genes[index]
         return gene_space[gene]
 
