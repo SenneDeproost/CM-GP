@@ -5,9 +5,9 @@
 # 28/11/2024 - Senne Deproost
 
 import numpy as np
-from typing import Callable, List, Union
+from typing import Callable, List, Union, Any
 import gymnasium as gym
-from networkx.classes import nodes
+import inspect
 
 from config import CartesianConfig
 from envs.simple_envs import SimpleGoalEnv
@@ -59,55 +59,22 @@ class CartesianProgram(Program):
     def __str__(self) -> str:
         return "test"
 
-    # Recursive function, traversing backwards in the graph
-    def _traverse(self, nodes, index: int):
-        node = nodes['all'][index]
-        fun = node.function
+    # Process the nodes
+    def _process_nodes(self):
+        # Amount of genes to encode a node
+        genes_per_node = 2 + self.config.max_node_arity
 
-        _res = []
-
-        # If function is operator, check the amount of operands and backtrack as many connections
-        if isinstance(fun, Operator):
-            n_connections = fun.n_operands
-            operands = []
-
-            # Accumulate branches
-            for connection in node.connections[:n_connections]:
-                operands.append(self._traverse(nodes, connection))
-
-            # Apply operator with operands
-            return fun.build(operands)
-
-        # If function is input variable, retrieve the value of the input variable
-        elif isinstance(fun, InputVar):
-            return fun()  # Lambda for accessing correct input
-
-        # If function is constant, return the value of the constant
-        elif isinstance(fun, float):
-            return float
-
-        else:
-            raise ValueError("Node with invalid type")
-
-    # Realization of genome into callable
-    def _realize(self, *input) -> List[Callable]:
-        c = self.config
-
-        # Accumulators
-        res = []
+        # Accumulator
         nodes = {
             'all': [],
             'output': []
         }
 
-        # Amount of genes to encode a node
-        genes_per_node = 2 + c.max_node_arity
-
         # Go over each set of genes and capture node + indices of the output nodes
-        for i in range(c.n_nodes):
+        for i in range(self.config.n_nodes):
             # Process
             n_index = i * genes_per_node
-            f_index, o_index, c_indices = n_index, n_index + 1, (n_index + 2, n_index + 1 + c.max_node_arity)
+            f_index, o_index, c_indices = n_index, n_index + 1, (n_index + 2, n_index + 1 + self.config.max_node_arity)
             operator = self.genome.express_gene(f_index)  # Gene space has list of operators that can be realized
             output = self.genome.express_gene(o_index) == 1  # Translate binary value to boolean
             connections = [int(self.genome.express_gene(j)) for j in c_indices]
@@ -118,9 +85,67 @@ class CartesianProgram(Program):
             if output:
                 nodes['output'].append(i)
 
+        return nodes
+
+    # Recursive function, traversing backwards in the graph
+    @staticmethod
+    def _traverse(node: Node,
+                  on_operator: Callable, on_float: Callable, on_inputvar: Callable) -> list[Any]:
+
+        fun = node.function
+
+        # Operator
+        if isinstance(fun, Operator):
+            return on_operator(node)
+
+        # Input variable
+        elif isinstance(fun, InputVar):
+            return on_inputvar(node)
+
+        # Float
+        elif isinstance(fun, float):
+            return on_float(node)
+
+        else:
+            raise ValueError("Node with invalid type")
+
+    # Realization of genome into callable
+    def _realize(self) -> list[list[Any]]:
+
+        # Accumulator
+        res = []
+
+        # Process nodes into traversable structure
+        nodes = self._process_nodes()
+
+        # Functions for different types of nodes
+
+        # Operator
+        def on_operator(node) -> tuple[Callable, tuple[Callable, float, InputVar]]:
+            fun = node.function
+            n_connections = fun.n_operands
+            operands = []
+
+            # Accumulate branches
+            for connection in node.connections[:n_connections]:
+                connected_node = nodes['all'][connection]
+                operands.append(self._traverse(connected_node, on_operator, on_float, on_inputvar))
+
+            # Apply operator with operands
+            return fun.build(operands)
+
+        # Input variable
+        def on_inputvar(node) -> InputVar:
+            return node.function()
+
+        # Float
+        def on_float(node) -> float:
+            return node.function
+
         # Start backtracking form each output node
         for output_idx in nodes['output']:
-            res.append(self._traverse(nodes, output_idx))
+            node = nodes['all'][output_idx]
+            res.append(self._traverse(node, on_operator, on_float, on_inputvar))
 
         return res
 
@@ -144,10 +169,10 @@ if __name__ == "__main__":
     print(genome)
 
     # Test valid program
-    genes = np.array([-14, 0.0, 1, 0.69991735, #  [ input_0 | False | [1, 1] ]
-                      -5, 0.0, 0, 1.37312973,  #  [ ||      | False | [0, 1] ]
-                      5, 0.0, 0, 0,            #  [ 5.0     | False | [0, 0] ]
-                      0, 1.0, 1, 2.34511764])  #  [ +       | True  | [1, 2] ]
+    genes = np.array([-14, 0.0, 1, 0.69991735,  # [ input_0 | False | [1, 1] ]
+                      -5, 0.0, 0, 1.37312973,  # [ ||      | False | [0, 1] ]
+                      5, 0.0, 0, 0,  # [ 5.0     | False | [0, 0] ]
+                      0, 1.0, 1, 2.34511764])  # [ +       | True  | [1, 2] ]
 
     genome = Genome(genes=genes, gene_spaces=gs)
 
