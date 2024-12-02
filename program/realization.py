@@ -59,6 +59,36 @@ class CartesianProgram(Program):
     def __str__(self) -> str:
         return "test"
 
+    # Recursive function, traversing backwards in the graph
+    def _traverse(self, nodes, index: int):
+        node = nodes['all'][index]
+        fun = node.function
+
+        _res = []
+
+        # If function is operator, check the amount of operands and backtrack as many connections
+        if isinstance(fun, Operator):
+            n_connections = fun.n_operands
+            operands = []
+
+            # Accumulate branches
+            for connection in node.connections[:n_connections]:
+                operands.append(self._traverse(nodes, connection))
+
+            # Apply operator with operands
+            return fun.build(operands)
+
+        # If function is input variable, retrieve the value of the input variable
+        elif isinstance(fun, InputVar):
+            return fun()  # Lambda for accessing correct input
+
+        # If function is constant, return the value of the constant
+        elif isinstance(fun, float):
+            return float
+
+        else:
+            raise ValueError("Node with invalid type")
+
     # Realization of genome into callable
     def _realize(self, *input) -> List[Callable]:
         c = self.config
@@ -88,39 +118,9 @@ class CartesianProgram(Program):
             if output:
                 nodes['output'].append(i)
 
-        # Recursive function, traversing backwards in the graph
-        def traverse(index: int):
-            node = nodes['all'][index]
-            fun = node.function
-
-            _res = []
-
-            # If function is operator, check the amount of operands and backtrack as many connections
-            if isinstance(fun, Operator):
-                n_connections = fun.n_operands
-                operands = []
-
-                # Accumulate branches
-                for connection in node.connections[:n_connections]:
-                    operands.append(traverse(connection))
-
-                # Apply operator with operands
-                return fun.build(operands)
-
-            # If function is input variable, retrieve the value of the input variable
-            elif isinstance(fun, InputVar):
-                return fun()  # Lambda for accessing correct input
-
-            # If function is constant, return the value of the constant
-            elif isinstance(fun, float):
-                return float
-
-            else:
-                raise ValueError("Node with invalid type")
-
         # Start backtracking form each output node
         for output_idx in nodes['output']:
-            res.append(traverse(output_idx))
+            res.append(self._traverse(nodes, output_idx))
 
         return res
 
