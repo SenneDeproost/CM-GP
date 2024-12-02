@@ -5,9 +5,11 @@
 # 28/11/2024 - Senne Deproost
 
 import numpy as np
-from typing import Callable, List, Union, Any
+from typing import Callable, List, Union, Any, Tuple
 import gymnasium as gym
 import inspect
+
+from numpy import ndarray
 
 from config import CartesianConfig
 from envs.simple_envs import SimpleGoalEnv
@@ -51,7 +53,7 @@ class CartesianProgram(Program):
 
     # Call dunder for easy execution
     def __call__(self, input: List[float]) -> float:
-        res = self._realization(*input)
+        res = self.evaluate(*input)
         return res
 
     # Dunder describing program
@@ -95,11 +97,11 @@ class CartesianProgram(Program):
         fun = node.function
 
         # Operator
-        if isinstance(fun, Operator):
+        if isinstance(fun, Union[Operator, tuple]):
             return on_operator(node)
 
         # Input variable
-        elif isinstance(fun, InputVar):
+        elif isinstance(fun, Union[InputVar, Callable]):
             return on_inputvar(node)
 
         # Float
@@ -119,35 +121,75 @@ class CartesianProgram(Program):
         nodes = self._process_nodes()
 
         # Functions for different types of nodes
-
         # Operator
-        def on_operator(node) -> tuple[Callable, tuple[Callable, float, InputVar]]:
-            fun = node.function
-            n_connections = fun.n_operands
-            operands = []
+        def on_operator(node: Node) -> Operator:
+            n_connections = node.function.n_operands
+            operator = node.function
 
             # Accumulate branches
-            for connection in node.connections[:n_connections]:
+            for connection in node.connections[:operator.n_operands]:  # Limit to n_operand connections
                 connected_node = nodes['all'][connection]
-                operands.append(self._traverse(connected_node, on_operator, on_float, on_inputvar))
+                operator.operands.append(self._traverse(connected_node, on_operator, on_float, on_inputvar))
 
-            # Apply operator with operands
-            return fun.build(operands)
+            return operator
 
         # Input variable
-        def on_inputvar(node) -> InputVar:
-            return node.function()
+        def on_inputvar(node: Node) -> InputVar:
+            return node.function
 
         # Float
-        def on_float(node) -> float:
+        def on_float(node: Node) -> float:
             return node.function
 
         # Start backtracking form each output node
         for output_idx in nodes['output']:
             node = nodes['all'][output_idx]
-            res.append(self._traverse(node, on_operator, on_float, on_inputvar))
+            r = self._traverse(node, on_operator, on_float, on_inputvar)
+            res.append(r)
+
+        # Result is a list of all backtracks from all output nodes, summed with the sum operator
+        return res
+
+    # Evaluate the realized function
+    def evaluate(self, f: Union[Callable, float, tuple], input: ndarray) -> float:
+
+        res = 0.0
+
+        # ToDo: Single float and input var cases
+
+        # When multiple functions are given, accumulate their results
+
+        if len(f) > 1:
+            for _f in f:
+                res += self._evaluate(_f, input)
+        else:
+            res = self._evaluate(f[0], input)
 
         return res
+
+    def _evaluate(self, f: Union[Callable, float, tuple], input: ndarray) -> float:
+
+        # Function
+        if isinstance(f, Operator):
+            operands = []
+
+            # Accumulate branches
+            for operand in f.operands:
+                operands.append(self._evaluate(operand, input))
+
+            # Todo: better apply of operator to operands
+            return f(operands)
+
+        # Input variable
+        elif isinstance(f, InputVar):
+            return f(input)
+
+        # Float
+        elif isinstance(f, float):
+            return f
+
+        else:
+            raise ValueError("Unsupported function")
 
 
 if __name__ == "__main__":
@@ -170,11 +212,13 @@ if __name__ == "__main__":
 
     # Test valid program
     genes = np.array([-14, 0.0, 1, 0.69991735,  # [ input_0 | False | [1, 1] ]
-                      -5, 0.0, 0, 1.37312973,  # [ ||      | False | [0, 1] ]
+                      -11, 0.0, 0, 1.37312973,  # [ id      | False | [0, 1] ]
                       5, 0.0, 0, 0,  # [ 5.0     | False | [0, 0] ]
                       0, 1.0, 1, 2.34511764])  # [ +       | True  | [1, 2] ]
 
     genome = Genome(genes=genes, gene_spaces=gs)
 
+    i = np.array([-9, 99, 999, 9999])
     prog = CartesianProgram(genome, space, SIMPLE_OPERATORS, c)
+    res = prog.evaluate(prog._realization, i)
     print(prog)

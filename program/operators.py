@@ -16,6 +16,7 @@ class Operator:
         self.n_operands = n_operands
         self.function = function
         self.print = print
+        self.operands = []
 
     # Dunder for operator name
     def __str__(self) -> str:
@@ -36,8 +37,8 @@ class InputVar:
         self.index = index
 
     # Lambda that can access the given observation at any index
-    def __call__(self) -> callable:
-        return lambda input: input[self.index]
+    def __call__(self, input) -> callable:
+        return input[self.index]
 
     # Dunder for input variable index
     def __str__(self) -> str:
