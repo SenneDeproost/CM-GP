@@ -64,6 +64,13 @@ class Program:
         self.operators = operators
 
 
+def SumString(x: list[str]) -> str:
+    res = f'∑[ {x[0]}'
+    for x in x[1:]:
+        res += f', {x}'
+    return f'{res} ]'
+
+
 # Cartesian graph based program:
 # Todo: List of operators can be removed since it is encapsulated in the genespace instance
 class CartesianProgram(Program):
@@ -151,6 +158,7 @@ class CartesianProgram(Program):
         def on_float(node: Node, input: Union[None, ndarray[float]]) -> float:
             return node.function
 
+        # Sum over all output nodes
         for o in outputs:
             res += o.traverse(input, on_operator, on_inputvar, on_float)
 
@@ -180,10 +188,11 @@ class CartesianProgram(Program):
         for o in outputs:
             res.append(o.traverse(input, on_operator, on_inputvar, on_float))
 
+        # Sum over results if multiple output nodes are present
         if len(res) == 1:
             return res[0]
         else:
-            return res
+            return SumString(res)
 
 
 if __name__ == "__main__":
@@ -199,10 +208,10 @@ if __name__ == "__main__":
     print(genome)
 
     # Test valid program
-    genome = Genome(genes=test.SMALL_GENE, genome_space=gs)
-    c.n_nodes = int(test.SMALL_GENE.shape[0] / len(gs))
+    genome = Genome(genes=test.SMALL_GENE_1_OUTPUT, genome_space=gs)
+    c.n_nodes = int(test.SMALL_GENE_1_OUTPUT.shape[0] / len(gs))
     prog = CartesianProgram(genome, space, SIMPLE_OPERATORS, c)
-    res = prog.evaluate(test.SMALl_INPUT)  #ToDo ralization argument should be removed
+    res = prog.evaluate(test.SMALl_INPUT)
     s = prog.to_string()
     print(s)
     s = prog.to_string(test.SMALl_INPUT)

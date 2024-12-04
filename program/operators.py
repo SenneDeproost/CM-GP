@@ -34,7 +34,7 @@ class Operator:
     # Build the lambda
     def build(self, input) -> tuple[Callable, np.ndarray[float]]:
         return self.function, input
-    
+
 
 # Abstraction for input variable ot the program
 class InputVar:
