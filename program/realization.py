@@ -191,6 +191,49 @@ class CartesianProgram(Program):
         else:
             raise ValueError("Unsupported function")
 
+    # Return string representation of program
+    def to_string(self, input: Union[None, ndarray[float]] = None) -> str:
+
+        res = []
+        realization = self._realization
+
+        if len(realization) > 1:
+            for r in realization:
+                res.append(self._to_string(r, input))
+        else:
+            res = self._to_string(realization[0], input)
+
+        return res
+
+    def _to_string(self, realization: Operator, input: Union[None, np.ndarray[float]]) -> str:
+
+        # Function
+        if isinstance(realization, Operator):
+            operands = []
+
+            # Accumulate branches
+            for operand in realization.operands:
+                operands.append(self._to_string(operand, input))
+
+            # Todo: better apply of operator to operands
+            return realization.get_string(operands)
+
+        # Input variable
+        elif isinstance(realization, InputVar):
+            # Print input values variables
+            if isinstance(input, ndarray):
+                return realization.__str__(input)
+            # Print variable names
+            else:
+                return realization.__str__(input)
+
+        # Float
+        elif isinstance(realization, float):
+            return f'{realization}'
+
+        else:
+            raise ValueError("Unsupported function")
+
 
 if __name__ == "__main__":
     env = gym.make('CartPole-v1')
@@ -221,4 +264,5 @@ if __name__ == "__main__":
     i = np.array([-9, 99, 999, 9999])
     prog = CartesianProgram(genome, space, SIMPLE_OPERATORS, c)
     res = prog.evaluate(prog._realization, i)
-    print(prog)
+    s = prog.to_string()
+    print(s)

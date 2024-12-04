@@ -22,6 +22,12 @@ class Operator:
     def __str__(self) -> str:
         return self.name
 
+    # Get string representation of operator with operands
+    # Dunder for operator name
+    def get_string(self, operands: Union[list[str]]) -> str:
+        return f'{self.print(operands)}'
+
+
     # Dunder for callable
     def __call__(self, input) -> float:
         return self.function(input)
@@ -41,8 +47,11 @@ class InputVar:
         return input[self.index]
 
     # Dunder for input variable index
-    def __str__(self) -> str:
-        return f'input_{self.index}'
+    def __str__(self, input: Union[None, np.ndarray[float]] = None) -> str:
+        if input is not None:
+            return f'[{input}]'
+        else:
+            return f'input_{self.index}'
 
 
 old_SIMPLE_OPERATORS = [
