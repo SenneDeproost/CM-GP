@@ -27,7 +27,6 @@ class Operator:
     def get_string(self, operands: Union[list[str]]) -> str:
         return f'{self.print(operands)}'
 
-
     # Dunder for callable
     def __call__(self, input) -> float:
         return self.function(input)
@@ -52,7 +51,11 @@ class InputVar:
 
     # Get string representation with inputs
     def to_string(self, input: np.ndarray[float]) -> str:
-        return f'{input[self.index]}'
+        if input is None:
+            return self.__str__()
+        else:
+            return f'{input[self.index]}'
+
 
 # Check if brackets are needed (Bracket Check)
 def bc(x: str) -> str:
@@ -60,6 +63,7 @@ def bc(x: str) -> str:
         return f'({x})'
     else:
         return x
+
 
 SIMPLE_OPERATORS = [
     Operator('+', 2, lambda x: x[0] + x[1],
