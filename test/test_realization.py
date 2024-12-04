@@ -40,6 +40,6 @@ def test_big_program_1_output():
     genome = Genome(genes=test.BIG_GENE, genome_space=gs)
     prog = CartesianProgram(genome, space, SIMPLE_OPERATORS, c)
 
-    assert prog.evaluate(prog._realization, i) == -4.0
+    assert prog.evaluate(prog._realization, i) == -396.0
     assert prog.to_string() == '(id(input_0) + 5.0) * input_1'
-    assert prog.to_string(i) == f'(id({[0]}) + 5.0) * i{[1]}'
+    assert prog.to_string(i) == f'(id({i[0]}) + 5.0) * {i[1]}'

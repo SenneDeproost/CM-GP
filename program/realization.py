@@ -49,7 +49,7 @@ class CartesianProgram(Program):
         super().__init__(genome, input_space, operators)
         self.genome = genome
         self.config = config
-        self._realization = self._realize()  # Realization is giant lambda
+        self._realization = self._realize()  # Realization nesting of operators
         self._str = self.to_string()
 
     # Call dunder for easy execution
@@ -98,11 +98,11 @@ class CartesianProgram(Program):
         fun = node.function
 
         # Operator
-        if isinstance(fun, Union[Operator, tuple]):
+        if isinstance(fun, Operator):
             return on_operator(node)
 
         # Input variable
-        elif isinstance(fun, Union[InputVar, Callable]):
+        elif isinstance(fun, InputVar):
             return on_inputvar(node)
 
         # Float
@@ -113,7 +113,7 @@ class CartesianProgram(Program):
             raise ValueError("Node with invalid type")
 
     # Realization of genome into callable
-    def _realize(self) -> list[list[Any]]:
+    def _realize(self) -> list[Union[Operator, InputVar, float]]:
 
         # Accumulator
         res = []

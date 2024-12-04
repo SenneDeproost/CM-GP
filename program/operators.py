@@ -54,37 +54,13 @@ class InputVar:
     def to_string(self, input: np.ndarray[float]) -> str:
         return f'{input[self.index]}'
 
+# Check if brackets are needed (Bracket Check)
+def bc(x: str) -> str:
+    if '(' in x:
+        return f'({x})'
+    else:
+        return x
 
-old_SIMPLE_OPERATORS = [
-    Operator('+', 2, lambda a, b: a + b,
-             lambda a, b: f'{a} + {b}'),
-    Operator('-', 2, lambda a, b: a - b,
-             lambda a, b: f'{a} - {b}'),
-    Operator('%', 2, lambda a, b: a % b,
-             lambda a, b: f'{a} % {b}'),
-    Operator('*', 2, lambda a, b: a * b,
-             lambda a, b: f'{a} * {b}'),
-    Operator('/', 2, lambda a, b: 999 if -0.01 > b > 0.01 else a / b,
-             lambda a, b: f'{a} / {b}'),
-    Operator('||', 1, lambda a: abs(a),
-             lambda a: f'|{a}|'),
-    Operator('exp', 1, lambda a: math.exp(a),
-             lambda a: f'exp({a})'),
-    Operator('sin', 1, lambda a: math.sin(a),
-             lambda a: f'sin({a})'),
-    Operator('cos', 1, lambda a: math.cos(a),
-             lambda a: f'cos({a})'),
-    Operator('log', 1, lambda a: -999 if a < 0.01 else math.log(a),
-             lambda a: f'log({a})'),
-    Operator('neg', 1, lambda a: -a,
-             lambda a: f'neg({a})'),
-    Operator('id', 1, lambda a: a,
-             lambda a: f'id({a})'),
-    Operator('>', 4, lambda a, b, _true, _false: _true if a > b else _false,
-             lambda a, b, _true, _false: f'{_true} if {a} > {b} else {_false}'),
-    Operator('<', 4, lambda a, b, _true, _false: _true if a < b else _false,
-             lambda a, b, _true, _false: f'{_true} if {a} < {b} else {_false}'),
-]
 SIMPLE_OPERATORS = [
     Operator('+', 2, lambda x: x[0] + x[1],
              lambda x: f'{x[0]} + {x[1]}'),
@@ -93,9 +69,9 @@ SIMPLE_OPERATORS = [
     Operator('%', 2, lambda x: x[0] % x[1],
              lambda x: f'{x[0]} % {x[1]}'),
     Operator('*', 2, lambda x: x[0] * x[1],
-             lambda x: f'{x[0]} * {x[1]}'),
+             lambda x: f'{bc(x[0])} * {bc(x[1])}'),
     Operator('/', 2, lambda x: 999 if -0.01 > x[1] > 0.01 else x[0] / x[1],
-             lambda x: f'{x[0]} / {x[1]}'),
+             lambda x: f'{bc(x[0])} / {bc(x[1])}'),
     Operator('||', 1, lambda x: abs(x[0]),
              lambda x: f'|{x}|'),
     Operator('exp', 1, lambda x: math.exp(x[0]),
