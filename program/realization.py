@@ -13,7 +13,7 @@ from numpy import ndarray
 
 from config import CartesianConfig
 from envs.simple_envs import SimpleGoalEnv
-from population import Genome, OperatorGeneSpace, CartesianGeneSpace, generate_cartesian_genome_space
+from population import Genome, OperatorGeneSpace, CartesianGeneSpace, generate_cartesian_genome_space, genes_per_node
 from program.operators import Operator, SIMPLE_OPERATORS, InputVar
 from dataclasses import dataclass, asdict
 
@@ -29,9 +29,31 @@ class Node:
         self.function = function
         self.output = output
         self.connections = connections
+        self.connected_nodes = []
 
     def __str__(self) -> str:
         return f' [ {self.function} | {self.output} | {self.connections} ]'
+
+    # Helper function for traversal
+    def traverse(self, input: Union[ndarray[float], None],
+                 on_operator: Callable, on_inputvar: Callable, on_float: Callable):
+
+        function = self.function
+
+        # Operator
+        if isinstance(function, Operator):
+            return on_operator(self, input)
+
+        # Input variable
+        elif isinstance(function, InputVar):
+            return on_inputvar(self, input)
+
+        # Float
+        elif isinstance(function, float):
+            return on_float(self, input)
+
+        else:
+            raise ValueError("Node with invalid function type")
 
 
 # Program base class
@@ -49,7 +71,7 @@ class CartesianProgram(Program):
         super().__init__(genome, input_space, operators)
         self.genome = genome
         self.config = config
-        self._realization = self._realize()  # Realization nesting of Nodes
+        self._realization = self._process_nodes()  # Realization nesting of Nodes
         self._str = self.to_string()
 
     # Call dunder for easy execution
@@ -64,8 +86,8 @@ class CartesianProgram(Program):
 
     # Process the nodes
     def _process_nodes(self):
-        # Amount of genes to encode a node
-        genes_per_node = 2 + self.config.max_node_arity
+
+        _genes_per_node = genes_per_node(self.config)
 
         # Accumulator
         nodes = {
@@ -76,7 +98,7 @@ class CartesianProgram(Program):
         # Go over each set of genes and capture node + indices of the output nodes
         for i in range(self.config.n_nodes):
             # Process
-            n_index = i * genes_per_node
+            n_index = i * _genes_per_node
             f_index, o_index, c_indices = n_index, n_index + 1, (n_index + 2, n_index + 1 + self.config.max_node_arity)
             operator = self.genome.express_gene(f_index)  # Gene space has list of operators that can be realized
             output = self.genome.express_gene(o_index) == 1  # Translate binary value to boolean
@@ -86,79 +108,39 @@ class CartesianProgram(Program):
             node = Node(operator, output, connections)
             nodes['all'].append(node)
             if output:
-                nodes['output'].append(i)
+                nodes['output'].append(node)
+
+        # Go over a second time for setting the connections and operands
+        for node in nodes['all']:
+            function = node.function
+
+            ## Cases need to be separate conditional outside connection loop
+            # Operator case
+            if isinstance(function, Operator):
+                for connection in node.connections[:function.n_operands]:
+                    connected_node = nodes['all'][connection]
+                    node.connected_nodes.append(connected_node)
+                    function.operands.append(connected_node)
+
+            # All other cases
+            else:
+                for connection in node.connections:
+                    connected_node = nodes['all'][connection]
+                    node.connected_nodes.append(connected_node)
 
         return nodes
-
-    # Recursive function for traversing graph of nodes and executing realized nesting of operators
-    @staticmethod
-    def _traverse(node: Node,
-                  input: Union[ndarray[float], None],
-                  on_operator: Callable, on_inputvar: Callable, on_float: Callable, ) -> list[Any]:
-
-        function = node.function
-
-        # Operator
-        if isinstance(function, Operator):
-            return on_operator(node, input)
-
-        # Input variable
-        elif isinstance(function, InputVar):
-            return on_inputvar(node, input)
-
-        # Float
-        elif isinstance(function, float):
-            return on_float(node, input)
-
-        else:
-            raise ValueError("Node with invalid funtion type")
-
-    # Realization of genome into callable
-    def _realize(self) -> list[list[Node]]:
-
-        # Accumulator
-        res = []
-
-        # Process nodes into traversable structure
-        nodes = self._process_nodes()
-
-        # Functions for different types of nodes
-        # Operator
-        def on_operator(node: Node, input=None) -> Node:
-            operator = node.function
-            for connection in node.connections[:operator.n_operands]:  # Limit to n_operand connections
-                connected_node = nodes['all'][connection]
-                operator.operands.append(self._traverse(connected_node, None, on_operator, on_inputvar, on_float))
-            return node
-
-        # Input variable
-        def on_inputvar(node: Node, input=None) -> Node:
-            return node
-
-        # Float
-        def on_float(node: Node, input=None) -> Node:
-            return node
-
-        # Start backtracking form each output node
-        for output_idx in nodes['output']:
-            node = nodes['all'][output_idx]
-            r = self._traverse(node, None, on_operator, on_inputvar, on_float)
-            res.append(r)
-
-        # Result is a list of all backtracks from all output nodes, summed with the sum operator
-        return res
 
     # Evaluate the realized function
     def evaluate(self, input: ndarray[float]) -> float:
 
-        res = 0.0
-        f = self._realization
+        res = 0
+        outputs = self._realization['output']
 
         # Operator
         def on_operator(node: Node, input: Union[None, ndarray[float]]) -> Operator:
             operands = []
             for operand in node.function.operands:
-                operands.append(self._traverse(operand, input, on_operator, on_inputvar, on_float))
+                operands.append(operand.traverse(input, on_operator, on_inputvar, on_float))
             return node.function(operands)
 
         # Input variable
@@ -169,29 +151,22 @@ class CartesianProgram(Program):
         def on_float(node: Node, input: Union[None, ndarray[float]]) -> float:
             return node.function
 
-
-        # When multiple functions are given, accumulate their results
-        if len(f) > 1:
-            for _f in f:
-                res += self._traverse(_f, input, on_operator, on_inputvar, on_float)
-        else:
-            res = self._traverse(f[0], input, on_operator, on_inputvar, on_float)
+        for o in outputs:
+            res += o.traverse(input, on_operator, on_inputvar, on_float)
 
         return res
 
     # Return string representation of program. When input is not given, placeholder names are used
-    def to_string(self, input: Union[None, ndarray[float]] = None) -> str:
+    def to_string(self, input: Union[None, ndarray[float]] = None) -> list[Any] | Any:
 
         res = []
-        realization = self._realization
+        outputs = self._realization['output']
 
         # Operator
-        # problem is here I think. should be already a traversable node structure
         def on_operator(node: Node, input: Union[None, ndarray[float]]) -> str:
-            operator = node.function
             operands = []
             for operand in node.function.operands:
-                operands.append(self._traverse(operand, input, on_operator, on_inputvar, on_float))
+                operands.append(operand.traverse(input, on_operator, on_inputvar, on_float))
             return node.function.print(operands)
 
         # Input variable
@@ -202,13 +177,13 @@ class CartesianProgram(Program):
         def on_float(node: Node, input: Union[None, ndarray[float]]) -> str:
             return str(node.function)
 
-        if len(realization) > 1:
-            for r in realization:
-                res.append(self._traverse(r, input, on_operator, on_inputvar, on_float))
-        else:
-            res = self._traverse(realization[0], input, on_operator, on_inputvar, on_float)
+        for o in outputs:
+            res.append(o.traverse(input, on_operator, on_inputvar, on_float))
 
-        return res
+        if len(res) == 1:
+            return res[0]
+        else:
+            return res
 
 
 if __name__ == "__main__":
@@ -227,9 +202,8 @@ if __name__ == "__main__":
     genome = Genome(genes=test.SMALL_GENE, genome_space=gs)
     c.n_nodes = int(test.SMALL_GENE.shape[0] / len(gs))
     prog = CartesianProgram(genome, space, SIMPLE_OPERATORS, c)
-    res = prog.evaluate(test.SMALl_INPUT) #ToDo ralization argument should be removed
+    res = prog.evaluate(test.SMALl_INPUT)  #ToDo ralization argument should be removed
     s = prog.to_string()
     print(s)
     s = prog.to_string(test.SMALl_INPUT)
     print(s)
-
