@@ -2,3 +2,4 @@ torch
 stable_baselines3
 tensorboard
 pyrallis
+pytest

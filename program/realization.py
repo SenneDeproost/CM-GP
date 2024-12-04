@@ -7,13 +7,13 @@
 import numpy as np
 from typing import Callable, List, Union, Any, Tuple
 import gymnasium as gym
-import inspect
+import test
 
 from numpy import ndarray
 
 from config import CartesianConfig
 from envs.simple_envs import SimpleGoalEnv
-from population import Genome, OperatorGeneSpace, CartesianGeneSpace
+from population import Genome, OperatorGeneSpace, CartesianGeneSpace, generate_cartesian_genome_space
 from program.operators import Operator, SIMPLE_OPERATORS, InputVar
 from dataclasses import dataclass, asdict
 
@@ -50,6 +50,7 @@ class CartesianProgram(Program):
         self.genome = genome
         self.config = config
         self._realization = self._realize()  # Realization is giant lambda
+        self._str = self.to_string()
 
     # Call dunder for easy execution
     def __call__(self, input: List[float]) -> float:
@@ -59,7 +60,7 @@ class CartesianProgram(Program):
     # Dunder describing program
     # Todo: Correct printing of a program -> Maybe for the Program parent class?
     def __str__(self) -> str:
-        return "test"
+        return self._str
 
     # Process the nodes
     def _process_nodes(self):
@@ -191,7 +192,7 @@ class CartesianProgram(Program):
         else:
             raise ValueError("Unsupported function")
 
-    # Return string representation of program
+    # Return string representation of program. When input is not given, placeholder names are used
     def to_string(self, input: Union[None, ndarray[float]] = None) -> str:
 
         res = []
@@ -222,10 +223,10 @@ class CartesianProgram(Program):
         elif isinstance(realization, InputVar):
             # Print input values variables
             if isinstance(input, ndarray):
-                return realization.__str__(input)
+                return realization.to_string(input)
             # Print variable names
             else:
-                return realization.__str__(input)
+                return str(realization)
 
         # Float
         elif isinstance(realization, float):
@@ -236,33 +237,24 @@ class CartesianProgram(Program):
 
 
 if __name__ == "__main__":
-    env = gym.make('CartPole-v1')
-    env.reset()
-    space = env.observation_space
-    input_size = env.observation_space.shape[0]
+    space = test.SMALL_OBS_SPACE
+    input_size = space.shape[0]
 
-    # Test for 3 nodes of 4 genes
+    # Test for 4 nodes of 4 genes
     c = CartesianConfig()
     c.n_nodes = 4
-    gs = [
-        OperatorGeneSpace((-len(SIMPLE_OPERATORS) - input_size, c.max_constant), SIMPLE_OPERATORS),
-        CartesianGeneSpace((0, 1)),
-        *[CartesianGeneSpace((0, c.n_nodes)) for _ in range(c.max_node_arity)],
-    ]
+    gs = generate_cartesian_genome_space(c, input_size)
 
-    genome = Genome(n_genes=len(gs) * c.n_nodes, gene_spaces=gs)
+    genome = Genome(n_genes=len(gs) * c.n_nodes, genome_space=gs)
     print(genome)
 
     # Test valid program
-    genes = np.array([-14, 0.0, 1, 0.69991735,  # [ input_0 | False | [1, 1] ]
-                      -11, 0.0, 0, 1.37312973,  # [ id      | False | [0, 1] ]
-                      5, 0.0, 0, 0,  # [ 5.0     | False | [0, 0] ]
-                      0, 1.0, 1, 2.34511764])  # [ +       | True  | [1, 2] ]
-
-    genome = Genome(genes=genes, gene_spaces=gs)
-
-    i = np.array([-9, 99, 999, 9999])
+    genome = Genome(genes=test.SMALL_GENE, genome_space=gs)
+    c.n_nodes = int(test.SMALL_GENE.shape[0] / len(gs))
     prog = CartesianProgram(genome, space, SIMPLE_OPERATORS, c)
-    res = prog.evaluate(prog._realization, i)
+    res = prog.evaluate(prog._realization, test.SMALl_INPUT) #ToDo ralization argument should be removed
     s = prog.to_string()
     print(s)
+    s = prog.to_string(test.SMALl_INPUT)
+    print(s)
+

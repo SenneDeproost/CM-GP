@@ -1,1 +1,2 @@
-from program.operators import Operator
+from population import CartesianPopulation, CartesianGeneSpace
+

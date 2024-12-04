@@ -47,11 +47,12 @@ class InputVar:
         return input[self.index]
 
     # Dunder for input variable index
-    def __str__(self, input: Union[None, np.ndarray[float]] = None) -> str:
-        if input is not None:
-            return f'[{input}]'
-        else:
-            return f'input_{self.index}'
+    def __str__(self) -> str:
+        return f'input_{self.index}'
+
+    # Get string representation with inputs
+    def to_string(self, input: np.ndarray[float]) -> str:
+        return f'{input[self.index]}'
 
 
 old_SIMPLE_OPERATORS = [

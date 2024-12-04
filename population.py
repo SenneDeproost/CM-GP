@@ -13,6 +13,12 @@ from program import operators
 from program.operators import Operator, SIMPLE_OPERATORS, InputVar
 
 
+# Calculate the amount of genes per node
+def genes_per_node(config: CartesianConfig) -> int:
+    n = 2 + config.max_node_arity
+    return n
+
+
 # Abstract for different types of GeneSpace
 class GeneSpace:
     def __init__(self, gene_range: tuple[float, float]) -> None:
@@ -73,6 +79,7 @@ class OperatorGeneSpace(GeneSpace):
     def __str__(self) -> str:
         return f'Operator space {self.gene_range[0]}->{self.gene_range[1]} with {len(self.operators)} operators'
 
+
 # ToDo: Exclude own index to prevent infinite loop
 # Gene space for Cartesian coordinates
 class CartesianGeneSpace(GeneSpace):
@@ -90,9 +97,10 @@ class CartesianGeneSpace(GeneSpace):
 
 # Genome of individual program
 class Genome:
-    def __init__(self, n_genes: int=-1, gene_spaces: List[GeneSpace]=None, genes: np.ndarray=None) -> None:
+    def __init__(self, genome_space: List[GeneSpace], n_genes: Union[int, None] = None,
+                 genes: np.ndarray = None) -> None:
         self.n_genes = n_genes
-        self.gene_spaces = gene_spaces
+        self.genome_space = genome_space
 
         # Check if genes are given or need to be initialized by the genome
         if genes is not None:
@@ -118,7 +126,7 @@ class Genome:
 
     # Makes circular list possible
     def _get_gene_space(self, i):
-        return self.gene_spaces[i % len(self.gene_spaces)]
+        return self.genome_space[i % len(self.genome_space)]
 
     # Sample gene values from the respective gene spaces
     def _init_genome(self) -> None:
@@ -155,7 +163,7 @@ class CartesianPopulation(Population):
                  state_space: gym.Space = None) -> None:
         self.config = config.program
         self.optim_config = config
-        self.n_genes = 2 * self.config.n_nodes + self.config.max_node_arity
+        self.n_genes = self.config.n_nodes * genes_per_node(self.config)
         self.state_space = state_space
         self.n_inputs = np.prod(state_space.shape)
 
@@ -214,6 +222,21 @@ class CartesianPopulation(Population):
         return res
 
 
+
+
+# Todo: check role of input_size
+# Generate Cartesian gene space
+def generate_cartesian_genome_space(config: CartesianConfig, input_size: int) -> List[GeneSpace]:
+    gs = [
+        OperatorGeneSpace(  # Operator
+            (-len(SIMPLE_OPERATORS) - input_size, config.max_constant),
+            SIMPLE_OPERATORS),
+        CartesianGeneSpace((0, 1)),   # Binary indicator for output node
+        *[CartesianGeneSpace((0, config.n_nodes)) for _ in range(config.max_node_arity)], # Receiving connections
+    ]
+    return gs
+
+
 if __name__ == '__main__':
     # Gene space test
     gs = OperatorGeneSpace((-1, 0), SIMPLE_OPERATORS)
@@ -221,7 +244,7 @@ if __name__ == '__main__':
     print(gs[-1])
 
     # Genome test
-    genome = Genome(n_genes=1, gene_spaces=[gs])
+    genome = Genome(n_genes=1, genome_space=[gs])
     print(genome.express_gene(0))
 
     # Population test
