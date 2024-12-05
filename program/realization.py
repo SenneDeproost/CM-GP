@@ -13,7 +13,7 @@ from numpy import ndarray
 
 from config import CartesianConfig
 from envs.simple_envs import SimpleGoalEnv
-from population import Genome, OperatorGeneSpace, CartesianGeneSpace, generate_cartesian_genome_space, genes_per_node
+from population import Genome, OperatorGeneSpace, generate_cartesian_genome_space, genes_per_node
 from program.operators import Operator, SIMPLE_OPERATORS, InputVar
 from dataclasses import dataclass, asdict
 

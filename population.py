@@ -4,7 +4,7 @@
 #
 # 27/11/2024 - Senne Deproost & Denis Steckelmacher
 from collections import OrderedDict
-from typing import List, Callable, Union
+from typing import List, Callable, Union, Counter
 import numpy as np
 from sympy.polys.polyoptions import Order
 
@@ -80,23 +80,86 @@ class OperatorGeneSpace(GeneSpace):
             return value
 
     def __str__(self) -> str:
-        return f'Operator space {self.gene_range[0]}->{self.gene_range[1]} with {len(self.operators)} operators'
+        return f'Operator gene space {self.gene_range[0]}->{self.gene_range[1]} with {len(self.operators)} operators'
 
 
-# ToDo: Exclude own index to prevent infinite loop
-# Gene space for Cartesian coordinates
-class CartesianGeneSpace(GeneSpace):
-    def __init__(self, gene_range: tuple[float, float], excludes: Union[OrderedDict, None] = None) -> None:
-        super().__init__(gene_range)
-        self.excludes = excludes  # If given, excludes will be applied in sampling
+class BooleanGeneSpace(GeneSpace):
+    def __init__(self, excludes: Union[Counter, bool, None] = None) -> None:
+        # Boolean gene range
+        super().__init__((0.0, 1.0))
+        self.excludes = excludes
+        # If excludes are not given but enabled, initialize new set of excludes
+        if excludes is True:
+            self.excludes = Counter(true=0, false=0)
 
-    # Just return the value.
+    # Just return the value
     def __getitem__(self, value: float, *args, **kwargs) -> float:
         assert self.gene_range[0] <= value <= self.gene_range[1], 'Value out of gene range'
         return self._round(value)
 
+    # Todo: Solve loop when rounding stochastic
+    # Todo: better sampling with exclusions
+    # Sample with exclusions taken into account
+    def sample(self, strategy: str = 'uniform') -> int:
+        pass
+
+    # String representation dunder
+    def __str__(self) -> str:
+        return f'Boolean gene space {self.gene_range[0]}->{self.gene_range[1]}'
+
+    # Reset excludes
+    def reset_excludes(self) -> None:
+        self.excludes = Counter(true=0, false=0)
+
+
+# Gene space for connection between nodes
+class IntegerGeneSpace(GeneSpace):
+    def __init__(self, gene_range: tuple[int, int], excludes: Union[set, bool, None] = None) -> None:
+        super().__init__(gene_range)
+
+        self.excludes = excludes
+        # If excludes are not given but enabled, initialize new set of excludes
+        if excludes is True:
+            self.excludes = set()
+
+    # Just return the value
+    def __getitem__(self, value: float, *args, **kwargs) -> float:
+        assert self.gene_range[0] <= value <= self.gene_range[1], 'Value out of gene range'
+        return self._round(value)
+
+    # Todo: Solve loop when rounding stochastic
+    # Todo: better sampling with exclusions
+    # Sample with exclusions taken into account
+    def sample(self, strategy: str = 'uniform') -> int:
+
+        v = super().sample(strategy)
+
+        if self.excludes is not None:
+            v = self._round(v)
+            # Naive method
+            attempts = 1
+            while attempts < 5:
+                if v in self.excludes:
+                    attempts += 1
+                    v = super().sample(strategy)
+                    v = self._round(v)
+                else:
+                    break
+            if attempts == 50:
+                raise ValueError('Too many attempts')
+
+            # Add sampled value to excludes
+            self.excludes.add(v)
+
+        return v
+
+    # String representation dunder
     def __str__(self) -> str:
         return f'Cartesian space {self.gene_range[0]}->{self.gene_range[1]}'
+
+    # Reset excludes
+    def reset_excludes(self) -> None:
+        self.excludes = set()
 
 
 # Genome of individual program
@@ -194,8 +257,8 @@ class CartesianPopulation(Population):
                          self.n_genes,
                          list([
                              OperatorGeneSpace(operator_range, operators),  # Function
-                             CartesianGeneSpace(output_range),  # Binary indicator if node is output
-                             *[CartesianGeneSpace(connection_range) for _ in
+                             BooleanGeneSpace(),  # Binary indicator if node is output
+                             *[IntegerGeneSpace(connection_range, excludes={0}) for _ in  # Exclude first index
                                range(self.config.max_node_arity)]]))  # Connections between nodes
 
     def __str__(self) -> str:
@@ -230,8 +293,8 @@ def generate_cartesian_genome_space(config: CartesianConfig, input_size: int) ->
         OperatorGeneSpace(  # Operator
             (-len(SIMPLE_OPERATORS) - input_size, config.max_constant),
             SIMPLE_OPERATORS),
-        CartesianGeneSpace((0, 1)),  # Binary indicator for output node
-        *[CartesianGeneSpace((0, config.n_nodes)) for _ in range(config.max_node_arity)],  # Receiving connections
+        BooleanGeneSpace(),  # Binary indicator for output node
+        *[IntegerGeneSpace((0, config.n_nodes)) for _ in range(config.max_node_arity)],  # Receiving connections
     ]
     return gs
 
