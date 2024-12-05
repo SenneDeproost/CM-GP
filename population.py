@@ -3,9 +3,11 @@
 # Population components for evolution
 #
 # 27/11/2024 - Senne Deproost & Denis Steckelmacher
-
+from collections import OrderedDict
 from typing import List, Callable, Union
 import numpy as np
+from sympy.polys.polyoptions import Order
+
 from config import CartesianConfig, OptimizerConfig
 import gymnasium as gym
 
@@ -28,24 +30,25 @@ class GeneSpace:
         self.gene_range = gene_range
 
     # Sampling method within the range of the space
-    def sample(self, strategy: str = 'uniform'):
+    def sample(self, strategy: str = 'uniform') -> np.ndarray:
 
-        if strategy == 'uniform':
-            return np.random.uniform(*self.gene_range)
-        else:
-            raise ValueError(f'Unknown sampling strategy {strategy}')
+        match strategy:
+            case 'uniform':
+                return np.random.uniform(*self.gene_range)
+            case _:
+                raise ValueError(f'Unknown sampling strategy {strategy}')
 
     # Different types of rounding possible
-    def _round(self, value: float, mode: str = 'regular') -> int:
+    @staticmethod
+    def _round(value: float, mode: str = 'regular') -> int:
 
-        if mode == 'regular':
-            res = round(value)
-        elif mode == 'stochastic':
-            res = int(value + (np.random.random() - 0.5))
-        else:
-            raise ValueError(f'Unknown rounding type: {mode}')
-
-        return res
+        match mode:
+            case 'regular':
+                return round(value)
+            case 'stochastic':
+                return int(value + (np.random.random() - 0.5))
+            case _:
+                ValueError(f'Unknown rounding type: {mode}')
 
 
 # Gene Space for Operators
@@ -83,10 +86,11 @@ class OperatorGeneSpace(GeneSpace):
 # ToDo: Exclude own index to prevent infinite loop
 # Gene space for Cartesian coordinates
 class CartesianGeneSpace(GeneSpace):
-    def __init__(self, gene_range: tuple[float, float]) -> None:
+    def __init__(self, gene_range: tuple[float, float], excludes: Union[OrderedDict, None] = None) -> None:
         super().__init__(gene_range)
+        self.excludes = excludes  # If given, excludes will be applied in sampling
 
-    # Just return the value
+    # Just return the value.
     def __getitem__(self, value: float, *args, **kwargs) -> float:
         assert self.gene_range[0] <= value <= self.gene_range[1], 'Value out of gene range'
         return self._round(value)
@@ -128,7 +132,7 @@ class Genome:
     def _get_gene_space(self, i):
         return self.genome_space[i % len(self.genome_space)]
 
-    # Sample gene values from the respective gene spaces
+    # Sample gene values from the respective gene spaces. When gene space has exclusions, take them into account
     def _init_genome(self) -> None:
         for i, gene in enumerate(self.genes):
             gene_space = self._get_gene_space(i)
@@ -137,10 +141,10 @@ class Genome:
 
 # Abstract for population of individual genomes
 class Population:
-    def __init__(self, n_individuals: int, n_genes: int, gene_spaces: List[GeneSpace]) -> None:
+    def __init__(self, n_individuals: int, n_genes: int, genome_space: List[GeneSpace]) -> None:
         self.n_individuals = n_individuals
         self.n_genes = n_genes
-        self.gene_spaces = gene_spaces
+        self.genome_space = genome_space
 
         self.individuals = []
         self._init_population()
@@ -151,7 +155,7 @@ class Population:
     # Initialize population by populating it with genomes
     def _init_population(self) -> None:
         for i in range(self.n_individuals):
-            genome = Genome(self.n_genes, self.gene_spaces)
+            genome = Genome(n_genes=self.n_genes, genome_space=self.genome_space)
             self.individuals.append(genome)
 
 
@@ -185,9 +189,6 @@ class CartesianPopulation(Population):
         output_range = (0, 1)
         connection_range = (0, self.config.n_nodes - 1)
 
-        # Check if correct amount of gene spaces are given
-        assert len(
-            self.gene_spaces) % 2 + self.config.max_node_arity, "Incorrect amount of gene spaces given for population"
         # Create population from different gene spaces
         super().__init__(config.n_individuals,
                          self.n_genes,
@@ -222,8 +223,6 @@ class CartesianPopulation(Population):
         return res
 
 
-
-
 # Todo: check role of input_size
 # Generate Cartesian gene space
 def generate_cartesian_genome_space(config: CartesianConfig, input_size: int) -> List[GeneSpace]:
@@ -231,8 +230,8 @@ def generate_cartesian_genome_space(config: CartesianConfig, input_size: int) ->
         OperatorGeneSpace(  # Operator
             (-len(SIMPLE_OPERATORS) - input_size, config.max_constant),
             SIMPLE_OPERATORS),
-        CartesianGeneSpace((0, 1)),   # Binary indicator for output node
-        *[CartesianGeneSpace((0, config.n_nodes)) for _ in range(config.max_node_arity)], # Receiving connections
+        CartesianGeneSpace((0, 1)),  # Binary indicator for output node
+        *[CartesianGeneSpace((0, config.n_nodes)) for _ in range(config.max_node_arity)],  # Receiving connections
     ]
     return gs
 

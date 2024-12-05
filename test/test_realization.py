@@ -1,10 +1,8 @@
-import gymnasium as gym
 import test
 from config import CartesianConfig
-from population import OperatorGeneSpace, CartesianGeneSpace, Genome, generate_cartesian_genome_space, genes_per_node
+from population import Genome, generate_cartesian_genome_space, genes_per_node
 from program.operators import SIMPLE_OPERATORS
 from program.realization import CartesianProgram
-from test import SMALl_INPUT
 
 
 def test_small_program_1_output():
@@ -42,7 +40,6 @@ def test_small_program_2_output():
     assert prog.evaluate(i) == -13.0
     assert prog.to_string() == '∑[ id(input_0), id(input_0) + 5.0 ]'
     assert prog.to_string(i) == f'∑[ id({i[0]}), id({i[0]}) + 5.0 ]'
-
 
 def test_big_program_1_output():
     space = test.SMALL_OBS_SPACE
