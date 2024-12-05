@@ -30,11 +30,19 @@ class GeneSpace:
         self.gene_range = gene_range
 
     # Sampling method within the range of the space
-    def sample(self, strategy: str = 'uniform') -> np.ndarray:
+    def sample(self, strategy: str = 'uniform', excludes: set = {}) -> Union[int, float]:
 
         match strategy:
+            # Normal uniform sampling float
             case 'uniform':
                 return np.random.uniform(*self.gene_range)
+            # Sampling from range of integers, with excluded values
+            case 'choice':
+                r = list(np.arange(self.gene_range[0], self.gene_range[1] + 1))
+                [r.remove(x) for x in list(excludes)]
+                return np.random.choice(r)
+
+            # Invalid sampling strategy
             case _:
                 raise ValueError(f'Unknown sampling strategy {strategy}')
 
@@ -82,26 +90,35 @@ class OperatorGeneSpace(GeneSpace):
     def __str__(self) -> str:
         return f'Operator gene space {self.gene_range[0]}->{self.gene_range[1]} with {len(self.operators)} operators'
 
+    # Todo: if needed, implement
+    def reset_excludes(self) -> None:
+        pass
 
+
+# Todo: Check if exclusion works here
+# Gene space for output nodes
 class BooleanGeneSpace(GeneSpace):
-    def __init__(self, excludes: Union[Counter, bool, None] = None) -> None:
+    def __init__(self, counter: Union[Counter, bool, None] = None) -> None:
         # Boolean gene range
-        super().__init__((0.0, 1.0))
-        self.excludes = excludes
+        super().__init__((0, 1))
+        self.counter = counter
         # If excludes are not given but enabled, initialize new set of excludes
-        if excludes is True:
-            self.excludes = Counter(true=0, false=0)
+        if counter is True:
+            self.counter = Counter(false=0, true=0)
 
     # Just return the value
-    def __getitem__(self, value: float, *args, **kwargs) -> float:
-        assert self.gene_range[0] <= value <= self.gene_range[1], 'Value out of gene range'
-        return self._round(value)
+    def __getitem__(self, value: int, *args, **kwargs) -> int:
+        v = self._round(value)
+        assert 0 <= v <= 1, 'Value out of gene range'
+        return v
 
     # Todo: Solve loop when rounding stochastic
-    # Todo: better sampling with exclusions
     # Sample with exclusions taken into account
-    def sample(self, strategy: str = 'uniform') -> int:
-        pass
+    def sample(self, strategy: str = 'choice') -> int:
+        v = super().sample(strategy)
+        k = 'true' if v == 1 else 'false'
+        self.counter[k] += 1
+        return v
 
     # String representation dunder
     def __str__(self) -> str:
@@ -109,7 +126,7 @@ class BooleanGeneSpace(GeneSpace):
 
     # Reset excludes
     def reset_excludes(self) -> None:
-        self.excludes = Counter(true=0, false=0)
+        self.counter = Counter(false=0, true=0)
 
 
 # Gene space for connection between nodes
@@ -124,38 +141,21 @@ class IntegerGeneSpace(GeneSpace):
 
     # Just return the value
     def __getitem__(self, value: float, *args, **kwargs) -> float:
-        assert self.gene_range[0] <= value <= self.gene_range[1], 'Value out of gene range'
-        return self._round(value)
+        v = self._round(value)
+        assert self.gene_range[0] <= v <= self.gene_range[1], 'Value out of gene range'
+        return v
 
     # Todo: Solve loop when rounding stochastic
-    # Todo: better sampling with exclusions
+    # Todo: Will there be an issue because of the seperate gene spaces?
     # Sample with exclusions taken into account
-    def sample(self, strategy: str = 'uniform') -> int:
-
-        v = super().sample(strategy)
-
-        if self.excludes is not None:
-            v = self._round(v)
-            # Naive method
-            attempts = 1
-            while attempts < 5:
-                if v in self.excludes:
-                    attempts += 1
-                    v = super().sample(strategy)
-                    v = self._round(v)
-                else:
-                    break
-            if attempts == 50:
-                raise ValueError('Too many attempts')
-
-            # Add sampled value to excludes
-            self.excludes.add(v)
-
+    def sample(self, strategy: str = 'choice') -> int:
+        v = super().sample(strategy, excludes=self.excludes)
+        self.excludes.add(v)
         return v
 
     # String representation dunder
     def __str__(self) -> str:
-        return f'Cartesian space {self.gene_range[0]}->{self.gene_range[1]}'
+        return f'Integer gene space {self.gene_range[0]}->{self.gene_range[1]}'
 
     # Reset excludes
     def reset_excludes(self) -> None:
@@ -195,8 +195,18 @@ class Genome:
     def _get_gene_space(self, i):
         return self.genome_space[i % len(self.genome_space)]
 
+    # Reset the gene spaces excludes
+    def _reset_excludes(self) -> None:
+        for gs in self.genome_space:
+            gs.reset_excludes()
+
     # Sample gene values from the respective gene spaces. When gene space has exclusions, take them into account
     def _init_genome(self) -> None:
+
+        # Reset the genome space excludes
+        self._reset_excludes()
+
+        # Loop over the genes
         for i, gene in enumerate(self.genes):
             gene_space = self._get_gene_space(i)
             self.genes[i] = gene_space.sample()
@@ -249,7 +259,6 @@ class CartesianPopulation(Population):
         # gene 2 to 2+max_arity-1 -> determined the arity of operator in set with the highest number of operands
 
         operator_range = (-len(operators) - self.n_inputs, self.config.max_constant)
-        output_range = (0, 1)
         connection_range = (0, self.config.n_nodes - 1)
 
         # Create population from different gene spaces

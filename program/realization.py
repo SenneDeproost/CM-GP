@@ -104,18 +104,25 @@ class CartesianProgram(Program):
 
         # Go over each set of genes and capture node + indices of the output nodes
         for i in range(self.config.n_nodes):
+
             # Process
             n_index = i * _genes_per_node
-            f_index, o_index, c_indices = n_index, n_index + 1, (n_index + 2, n_index + 1 + self.config.max_node_arity)
+            f_index, o_index, start_c_index, stop_c_index = n_index, n_index + 1, n_index + 2, n_index + 1 + self.config.max_node_arity
             operator = self.genome.express_gene(f_index)  # Gene space has list of operators that can be realized
             output = self.genome.express_gene(o_index) == 1  # Translate binary value to boolean
-            connections = [int(self.genome.express_gene(j)) for j in c_indices]
+            connections = [int(self.genome.express_gene(j)) for j in range(start_c_index, stop_c_index)]
 
             # Transform into node abstraction and put into accumulator
             node = Node(operator, output, connections)
             nodes['all'].append(node)
+
+            # Add node to output when indicated
             if output:
                 nodes['output'].append(node)
+
+        # Check if there is an output node, otherwise it is an invalid program
+        if len(nodes['output']) < 1:
+            raise ValueError(f"No output in {self.genome}")
 
         # Go over a second time for setting the connections and operands
         for node in nodes['all']:

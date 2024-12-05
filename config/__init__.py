@@ -57,7 +57,7 @@ class CartesianConfig:
     # Number of nodes in Cartesian graph
     n_nodes: int = field(default=6)
     # Number maximum arity over the set of operators
-    max_node_arity: int = field(default=2)
+    max_node_arity: int = field(default=4)
     # Highest number for constant
     max_constant: float = field(default=20)
 

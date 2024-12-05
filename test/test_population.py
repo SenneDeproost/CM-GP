@@ -10,7 +10,8 @@ def test_random_program_from_population():
     input_size = space.shape[0]
 
     c = OptimizerConfig()
-    c.n_individuals = 1
+    c.program.n_nodes = 2
+    c.n_individuals = 100
     gs = generate_cartesian_genome_space(c.program, input_size)
 
     i = test.SMALl_INPUT
