@@ -31,17 +31,15 @@ class GeneSpace:
         self.gene_range = gene_range
 
     # Sampling method within the range of the space
-    def sample(self, strategy: str = 'uniform', excludes: set = {}) -> Union[int, float]:
+    def sample(self, strategy: str = 'uniform') -> Union[int, float]:
 
         match strategy:
             # Normal uniform sampling float
             case 'uniform':
                 return np.random.uniform(*self.gene_range)
-            # Sampling from range of integers, with excluded values
+            # Sampling from range of integers
             case 'choice':
                 r = list(np.arange(self.gene_range[0], self.gene_range[1] + 1))
-                [r.remove(x) for x in list(excludes)]
-
                 # Todo: better resolvement of last connections
                 # Resolve connections at the end of the traversal
                 if len(r) == 0:
@@ -97,22 +95,12 @@ class OperatorGeneSpace(GeneSpace):
     def __str__(self) -> str:
         return f'Operator gene space {self.gene_range[0]}->{self.gene_range[1]} with {len(self.operators)} operators'
 
-    # Todo: if needed, implement
-    def reset_excludes(self) -> None:
-        pass
-
-
 # Todo: Check if exclusion works here
 # Gene space for output nodes
 class BooleanGeneSpace(GeneSpace):
-    def __init__(self, counter: Union[Counter, bool, None] = None) -> None:
+    def __init__(self) -> None:
         # Boolean gene range
         super().__init__((0, 1))
-        self.counter = counter
-        # If excludes are not given but enabled, initialize new set of excludes
-        if counter is True:
-            self.counter = Counter(false=0, true=0)
-
     # Just return the value
     def __getitem__(self, value: int, *args, **kwargs) -> int:
         v = self._round(value)
@@ -131,20 +119,11 @@ class BooleanGeneSpace(GeneSpace):
     def __str__(self) -> str:
         return f'Boolean gene space {self.gene_range[0]}->{self.gene_range[1]}'
 
-    # Reset excludes
-    def reset_excludes(self) -> None:
-        self.counter = Counter(false=0, true=0)
-
 
 # Gene space for connection between nodes
 class IntegerGeneSpace(GeneSpace):
-    def __init__(self, gene_range: tuple[int, int], excludes: Union[set, bool, None] = None) -> None:
+    def __init__(self, gene_range: tuple[int, int]) -> None:
         super().__init__(gene_range)
-
-        self.excludes = excludes
-        # If excludes are not given but enabled, initialize new set of excludes
-        if excludes is True:
-            self.excludes = set()
 
     # Just return the value
     def __getitem__(self, value: float, *args, **kwargs) -> float:
@@ -156,17 +135,12 @@ class IntegerGeneSpace(GeneSpace):
     # Todo: Will there be an issue because of the seperate gene spaces?
     # Sample with exclusions taken into account
     def sample(self, strategy: str = 'choice') -> int:
-        v = super().sample(strategy, excludes=self.excludes)
-        self.excludes.add(v)
+        v = super().sample(strategy)
         return v
 
     # String representation dunder
     def __str__(self) -> str:
         return f'Integer gene space {self.gene_range[0]}->{self.gene_range[1]}'
-
-    # Reset excludes
-    def reset_excludes(self) -> None:
-        self.excludes = set()
 
 
 # Genome of individual program
@@ -204,11 +178,6 @@ class Genome:
     def _get_gene_space(self, i):
         return self.genome_space[i % len(self.genome_space)]
 
-    # Reset the gene spaces excludes
-    def _reset_excludes(self) -> None:
-        for gs in self.genome_space:
-            gs.reset_excludes()
-
     # Sample gene values from the respective gene spaces. When gene space has exclusions, take them into account
     def _init_genome(self) -> None:
 
@@ -216,9 +185,6 @@ class Genome:
         for i, gene in enumerate(self.genes):
             gene_space = self._get_gene_space(i)
             self.genes[i] = gene_space.sample()
-
-        # Reset the genome space excludes
-        self._reset_excludes()
 
     # Helper function to return for every set of genes of a certain length the value
     def every_ith_gene(self, n: int, seq_len: int) -> list[float]:
@@ -295,7 +261,7 @@ class CartesianPopulation(Population):
                          list([
                              OperatorGeneSpace(operator_range, operators),  # Function
                              BooleanGeneSpace(counter=True),  # Binary indicator if node is output
-                             *[IntegerGeneSpace(connection_range, excludes={0}) for _ in  # Exclude first index
+                             *[IntegerGeneSpace(connection_range) for _ in  # Exclude first index
                                range(self.config.max_node_arity)]]))  # Connections between nodes
         # Resolve output
         for genome in self.individuals:
