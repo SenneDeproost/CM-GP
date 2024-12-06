@@ -42,6 +42,7 @@ class Node:
 
         # Operator
         if isinstance(function, Operator):
+            print(function)
             return on_operator(self, input)
 
         # Input variable

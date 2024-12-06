@@ -7,6 +7,7 @@ from collections import OrderedDict
 from typing import List, Callable, Union, Counter
 import numpy as np
 from sympy.polys.polyoptions import Order
+from tensorflow.python.ops.gen_nn_ops import selu_grad
 
 from config import CartesianConfig, OptimizerConfig
 import gymnasium as gym
@@ -40,7 +41,13 @@ class GeneSpace:
             case 'choice':
                 r = list(np.arange(self.gene_range[0], self.gene_range[1] + 1))
                 [r.remove(x) for x in list(excludes)]
-                return np.random.choice(r)
+
+                # Todo: better resolvement of last connections
+                # Resolve connections at the end of the traversal
+                if len(r) == 0:
+                    return 0
+                else:
+                    return np.random.choice(r)
 
             # Invalid sampling strategy
             case _:
@@ -165,9 +172,11 @@ class IntegerGeneSpace(GeneSpace):
 # Genome of individual program
 class Genome:
     def __init__(self, genome_space: List[GeneSpace], n_genes: Union[int, None] = None,
+                 pop_index: int = -1,
                  genes: np.ndarray = None) -> None:
         self.n_genes = n_genes
         self.genome_space = genome_space
+        self.pop_index = pop_index
 
         # Check if genes are given or need to be initialized by the genome
         if genes is not None:
@@ -203,13 +212,20 @@ class Genome:
     # Sample gene values from the respective gene spaces. When gene space has exclusions, take them into account
     def _init_genome(self) -> None:
 
-        # Reset the genome space excludes
-        self._reset_excludes()
-
         # Loop over the genes
         for i, gene in enumerate(self.genes):
             gene_space = self._get_gene_space(i)
             self.genes[i] = gene_space.sample()
+
+        # Reset the genome space excludes
+        self._reset_excludes()
+
+    # Helper function to return for every set of genes of a certain length the value
+    def every_ith_gene(self, n: int, seq_len: int) -> list[float]:
+        res = []
+        for i in range(int(len(self) / seq_len)):
+            res.append(self.genes[i*seq_len + n])
+        return res
 
 
 # Abstract for population of individual genomes
@@ -228,9 +244,21 @@ class Population:
     # Initialize population by populating it with genomes
     def _init_population(self) -> None:
         for i in range(self.n_individuals):
-            genome = Genome(n_genes=self.n_genes, genome_space=self.genome_space)
+            genome = Genome(n_genes=self.n_genes, genome_space=self.genome_space, pop_index=i)
             self.individuals.append(genome)
 
+
+# Helper function to return all output node genes
+def has_output(genome: Genome, config: CartesianConfig) -> bool:
+    outputs = genome.every_ith_gene(n=1, seq_len=genes_per_node(config))
+    has = 1 in outputs
+    return has
+
+
+# Resolve genomes with no output node
+def resolve_output(genome: Genome) -> None:
+    # Make first node an output node
+    genome.genes[1] = 1
 
 # Population for Cartesian representation
 class CartesianPopulation(Population):
@@ -266,9 +294,13 @@ class CartesianPopulation(Population):
                          self.n_genes,
                          list([
                              OperatorGeneSpace(operator_range, operators),  # Function
-                             BooleanGeneSpace(),  # Binary indicator if node is output
+                             BooleanGeneSpace(counter=True),  # Binary indicator if node is output
                              *[IntegerGeneSpace(connection_range, excludes={0}) for _ in  # Exclude first index
                                range(self.config.max_node_arity)]]))  # Connections between nodes
+        # Resolve output
+        for genome in self.individuals:
+            if not has_output(genome, config=self.config):
+                resolve_output(genome)
 
     def __str__(self) -> str:
         return f'Cartesian pop with {self.n_individuals} individuals of genome length {self.n_genes}'
@@ -302,7 +334,7 @@ def generate_cartesian_genome_space(config: CartesianConfig, input_size: int) ->
         OperatorGeneSpace(  # Operator
             (-len(SIMPLE_OPERATORS) - input_size, config.max_constant),
             SIMPLE_OPERATORS),
-        BooleanGeneSpace(),  # Binary indicator for output node
+        BooleanGeneSpace(counter=True),  # Binary indicator for output node
         *[IntegerGeneSpace((0, config.n_nodes)) for _ in range(config.max_node_arity)],  # Receiving connections
     ]
     return gs

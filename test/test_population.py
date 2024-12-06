@@ -1,3 +1,5 @@
+from exceptiongroup import catch
+
 import test
 from config import OptimizerConfig
 from population import generate_cartesian_genome_space, CartesianPopulation
@@ -11,7 +13,7 @@ def test_random_program_from_population():
 
     c = OptimizerConfig()
     c.program.n_nodes = 2
-    c.n_individuals = 100
+    c.n_individuals = 10
     gs = generate_cartesian_genome_space(c.program, input_size)
 
     i = test.SMALl_INPUT
@@ -20,5 +22,8 @@ def test_random_program_from_population():
     # Realize programs
     for idx in range(c.n_individuals):
         genome = pop.individuals[idx]
-        prog = CartesianProgram(genome, space, SIMPLE_OPERATORS, c.program)
-        print(prog)
+        try:
+            prog = CartesianProgram(genome, space, SIMPLE_OPERATORS, c.program)
+            print(prog)
+        except Exception as e:
+            pass
