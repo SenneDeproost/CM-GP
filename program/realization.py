@@ -42,7 +42,7 @@ class Node:
 
         # Operator
         if isinstance(function, Operator):
-            print(function)
+            print(self.function, self.connections)
             return on_operator(self, input)
 
         # Input variable
@@ -54,6 +54,7 @@ class Node:
             return on_float(self, input)
 
         else:
+            print(function)
             raise ValueError("Node with invalid function type")
 
 
@@ -108,10 +109,17 @@ class CartesianProgram(Program):
 
             # Process
             n_index = i * _genes_per_node
-            f_index, o_index, start_c_index, stop_c_index = n_index, n_index + 1, n_index + 2, n_index + 1 + self.config.max_node_arity
+            f_index, o_index, start_c_index, stop_c_index = (n_index,
+                                                             n_index + 1,
+                                                             n_index + 2,
+                                                             n_index + 1 + self.config.max_node_arity)
             operator = self.genome.express_gene(f_index)  # Gene space has list of operators that can be realized
             output = self.genome.express_gene(o_index) == 1  # Translate binary value to boolean
-            connections = [int(self.genome.express_gene(j)) for j in range(start_c_index, stop_c_index)]
+
+            # Fist node cannot have any connections
+            connections = []
+            if i > 0:
+                connections = [int(self.genome.express_gene(j)) for j in range(start_c_index, stop_c_index)]
 
             # Transform into node abstraction and put into accumulator
             node = Node(operator, output, connections)

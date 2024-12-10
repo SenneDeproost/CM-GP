@@ -12,8 +12,8 @@ def test_random_program_from_population():
     input_size = space.shape[0]
 
     c = OptimizerConfig()
-    c.program.n_nodes = 2
-    c.n_individuals = 10
+    c.program.n_nodes = 6#c.program.max_node_arity  # Minimal amount of nodes for operator with highest n_operands
+    c.n_individuals = 1000
     gs = generate_cartesian_genome_space(c.program, input_size)
 
     i = test.SMALl_INPUT
@@ -22,8 +22,5 @@ def test_random_program_from_population():
     # Realize programs
     for idx in range(c.n_individuals):
         genome = pop.individuals[idx]
-        try:
-            prog = CartesianProgram(genome, space, SIMPLE_OPERATORS, c.program)
-            print(prog)
-        except Exception as e:
-            pass
+        prog = CartesianProgram(genome, space, SIMPLE_OPERATORS, c.program)
+        print(prog)

@@ -15,6 +15,8 @@ import gymnasium as gym
 from program import operators
 from program.operators import Operator, SIMPLE_OPERATORS, InputVar
 
+EMPTY = -1
+
 
 # Calculate the amount of genes per node
 def genes_per_node(config: CartesianConfig) -> int:
@@ -22,30 +24,83 @@ def genes_per_node(config: CartesianConfig) -> int:
     return n
 
 
+# Class for gene ranges
+class GeneRange:
+    def __init__(self, range: Union[tuple[int, int], tuple[float, float]] = None,
+                 values: Union[None, list[float], list[int]] = None) -> None:
+
+        # Check if the gene range is valid
+        if range is not None:
+            assert range[0] <= range[1], "Invalid range"
+
+        self.range = range
+        self.values = values
+        self.empty = False
+
+        # Range can be empty
+        if range is None and values is None:
+            self.empty = True
+
+    def __getitem__(self, i: int) -> Union[float, int, None]:
+        if self.empty:
+            return None
+        elif self.values is not None:
+            return self.values[i]
+        else:
+            return self.range[i]
+
+    # Dunder for printing
+    def __str__(self) -> str:
+        if self.range is None:
+            return f'Gene range with values {self.values}'
+        else:
+            return f'Gene range {self.range[0]}->{self.range[1]}'
+
+    # Membership test
+    def contains(self, value: Union[int, float]) -> bool:
+        # Empty
+        if self.empty:
+            return False
+        # Range
+        elif not(self.range is None):
+            return self.range[0] <= value <= self.range[1]
+        # Values
+        elif not (self.values is None):
+            return value in self.values
+
+    # Translate for optimizer
+    def description(self) -> Union[dict, list]:
+        if self.range is None:
+            return self.values
+        else:
+            return {
+                'low': self.range[0],
+                'high': self.range[1]
+            }
+
+
 # Abstract for different types of GeneSpace
 class GeneSpace:
-    def __init__(self, gene_range: tuple[float, float]) -> None:
-
-        assert gene_range[0] <= gene_range[1], 'Invalid gene space range'
-
+    def __init__(self, gene_range: GeneRange) -> None:
         self.gene_range = gene_range
 
     # Sampling method within the range of the space
     def sample(self, strategy: str = 'uniform') -> Union[int, float]:
 
+        # Check for empty range
+        if self.gene_range.empty:
+            return EMPTY
+
+        # Strategies for sampling
         match strategy:
+
             # Normal uniform sampling float
             case 'uniform':
-                return np.random.uniform(*self.gene_range)
-            # Sampling from range of integers
-            case 'choice':
-                r = list(np.arange(self.gene_range[0], self.gene_range[1] + 1))
-                # Todo: better resolvement of last connections
-                # Resolve connections at the end of the traversal
-                if len(r) == 0:
-                    return 0
+                if not(self.gene_range.values is None):
+                    return np.random.choice(self.gene_range.values)
                 else:
-                    return np.random.choice(r)
+                    assert self.gene_range.range is not None, "Gene values not from range"
+                    return np.random.uniform(self.gene_range[0], self.gene_range[1])
 
             # Invalid sampling strategy
             case _:
@@ -66,15 +121,13 @@ class GeneSpace:
 
 # Gene Space for Operators
 class OperatorGeneSpace(GeneSpace):
-    def __init__(self, gene_range: tuple[float, float], operators: List[Operator]) -> None:
+    def __init__(self, gene_range: GeneRange,
+                 operators: List[Operator]) -> None:
         super().__init__(gene_range)
         self.operators = operators
-        self.n_inputs = self.gene_range[0] + len(operators)
 
     # Return corresponding realization from the gene space
     def __getitem__(self, value: float) -> Union[float, Operator, InputVar]:
-
-        assert self.gene_range[0] <= value <= self.gene_range[1], 'Value out of gene range'
 
         # Non-constant encoded as negative value
         if value <= 0:
@@ -92,55 +145,65 @@ class OperatorGeneSpace(GeneSpace):
         else:
             return value
 
+    # Sample random
+    def sample(self, strategy: str = 'uniform') -> Union[int, float]:
+
+        value = super().sample()
+
+        return value
+
+
     def __str__(self) -> str:
-        return f'Operator gene space {self.gene_range[0]}->{self.gene_range[1]} with {len(self.operators)} operators'
+        return f'Operator gene space with {str(self.gene_range)}'
+
 
 # Todo: Check if exclusion works here
 # Gene space for output nodes
-class BooleanGeneSpace(GeneSpace):
+class BinaryGeneSpace(GeneSpace):
     def __init__(self) -> None:
         # Boolean gene range
-        super().__init__((0, 1))
+        super().__init__(GeneRange(values=[0, 1]))
+
     # Just return the value
     def __getitem__(self, value: int, *args, **kwargs) -> int:
         v = self._round(value)
-        assert 0 <= v <= 1, 'Value out of gene range'
+        assert self.gene_range.contains(v), 'Value out of gene range'   # Check after rounding
         return v
 
     # Todo: Solve loop when rounding stochastic
     # Sample with exclusions taken into account
-    def sample(self, strategy: str = 'choice') -> int:
+    def sample(self, strategy: str = 'uniform') -> int:
         v = super().sample(strategy)
-        k = 'true' if v == 1 else 'false'
-        self.counter[k] += 1
         return v
 
     # String representation dunder
     def __str__(self) -> str:
-        return f'Boolean gene space {self.gene_range[0]}->{self.gene_range[1]}'
+        return f'Binary gene space {str(self.gene_range)}'
 
 
 # Gene space for connection between nodes
 class IntegerGeneSpace(GeneSpace):
-    def __init__(self, gene_range: tuple[int, int]) -> None:
+    def __init__(self, gene_range: GeneRange) -> None:
         super().__init__(gene_range)
 
     # Just return the value
     def __getitem__(self, value: float, *args, **kwargs) -> float:
         v = self._round(value)
-        assert self.gene_range[0] <= v <= self.gene_range[1], 'Value out of gene range'
+        # Check if there is no indication of first node resolvement in the given gene space
+        if not self.gene_range.empty:
+            assert self.gene_range.contains(v), 'Value out of gene range'  # Check after rounding
         return v
 
     # Todo: Solve loop when rounding stochastic
     # Todo: Will there be an issue because of the seperate gene spaces?
     # Sample with exclusions taken into account
-    def sample(self, strategy: str = 'choice') -> int:
+    def sample(self, strategy: str = 'uniform') -> int:
         v = super().sample(strategy)
         return v
 
     # String representation dunder
     def __str__(self) -> str:
-        return f'Integer gene space {self.gene_range[0]}->{self.gene_range[1]}'
+        return f'Integer gene space {str(self.gene_range)}'
 
 
 # Genome of individual program
@@ -149,7 +212,7 @@ class Genome:
                  pop_index: int = -1,
                  genes: np.ndarray = None) -> None:
         self.n_genes = n_genes
-        self.genome_space = genome_space
+        self.genome_space = [y for x in genome_space for y in x]  # Flatten incoming genome space
         self.pop_index = pop_index
 
         # Check if genes are given or need to be initialized by the genome
@@ -183,14 +246,14 @@ class Genome:
 
         # Loop over the genes
         for i, gene in enumerate(self.genes):
-            gene_space = self._get_gene_space(i)
+            gene_space = self.genome_space[i]
             self.genes[i] = gene_space.sample()
 
     # Helper function to return for every set of genes of a certain length the value
     def every_ith_gene(self, n: int, seq_len: int) -> list[float]:
         res = []
         for i in range(int(len(self) / seq_len)):
-            res.append(self.genes[i*seq_len + n])
+            res.append(self.genes[i * seq_len + n])
         return res
 
 
@@ -226,6 +289,7 @@ def resolve_output(genome: Genome) -> None:
     # Make first node an output node
     genome.genes[1] = 1
 
+
 # Population for Cartesian representation
 class CartesianPopulation(Population):
     def __init__(self,
@@ -234,8 +298,10 @@ class CartesianPopulation(Population):
                  state_space: gym.Space = None) -> None:
         self.config = config.program
         self.optim_config = config
-        self.n_genes = self.config.n_nodes * genes_per_node(self.config)
         self.state_space = state_space
+
+        self.genes_per_node = genes_per_node(self.config)
+        self.n_genes = self.config.n_nodes * self.genes_per_node
         self.n_inputs = np.prod(state_space.shape)
 
         # List of individuals that have been realized into programs recently
@@ -252,17 +318,68 @@ class CartesianPopulation(Population):
         # gene 1: output? --> Differs from CGPAX
         # gene 2 to 2+max_arity-1 -> determined the arity of operator in set with the highest number of operands
 
-        operator_range = (-len(operators) - self.n_inputs, self.config.max_constant)
-        connection_range = (0, self.config.n_nodes - 1)
+        #inputvar_range = (-len(operators) - self.n_inputs, -len(operators))
+        operator_range = GeneRange(range=(-len(operators) - self.n_inputs, self.config.max_constant))
+
+        # Construct genome space
+
+        # Todo: [!] proper genone spaces can be give to PyGad optimizer
+        self.genome_space = []
+
+        for i_node in range(self.config.n_nodes):
+
+            # Todo: check this
+            # Ensure DAG by only connecting to previous node indices in loop
+            connection_range = GeneRange() if i_node == 0 else GeneRange(range=(0, i_node - 1))
+
+            # The first nodes should be input nodes
+            if i_node <= self.n_inputs - 1:
+
+                # Index of the corresponding input variable
+                # input_0 at 0
+                # input_1 at 1
+                # etc..
+
+                input_range = GeneRange(values=[-len(operators) - i_node])
+
+                self.genome_space.append([
+
+                    # Operator, which is input variable of index i_node
+
+                    OperatorGeneSpace(gene_range=input_range, operators=operators),
+
+                    # Output node or not
+
+                    BinaryGeneSpace(),
+
+                    # Connections
+                    *[IntegerGeneSpace(connection_range) for _ in range(self.config.max_node_arity)]
+                ])
+
+
+
+
+            else:
+
+                # Ensure that operators are not selected that require more operands than currently available
+                self.genome_space.append([
+
+                    # Operator
+                    OperatorGeneSpace(operator_range, operators),
+
+                    # Output
+                    BinaryGeneSpace(),
+
+                    # Connections
+                    *[IntegerGeneSpace(connection_range) for _ in range(self.config.max_node_arity)]
+
+                ])
 
         # Create population from different gene spaces
         super().__init__(config.n_individuals,
                          self.n_genes,
-                         list([
-                             OperatorGeneSpace(operator_range, operators),  # Function
-                             BooleanGeneSpace(counter=True),  # Binary indicator if node is output
-                             *[IntegerGeneSpace(connection_range) for _ in  # Exclude first index
-                               range(self.config.max_node_arity)]]))  # Connections between nodes
+                         self.genome_space)
+
         # Resolve output
         for genome in self.individuals:
             if not has_output(genome, config=self.config):
@@ -298,9 +415,9 @@ class CartesianPopulation(Population):
 def generate_cartesian_genome_space(config: CartesianConfig, input_size: int) -> List[GeneSpace]:
     gs = [
         OperatorGeneSpace(  # Operator
-            (-len(SIMPLE_OPERATORS) - input_size, config.max_constant),
+            GeneRange(range=(-len(SIMPLE_OPERATORS) - input_size, config.max_constant)),
             SIMPLE_OPERATORS),
-        BooleanGeneSpace(counter=True),  # Binary indicator for output node
+        BinaryGeneSpace(),  # Binary indicator for output node
         *[IntegerGeneSpace((0, config.n_nodes)) for _ in range(config.max_node_arity)],  # Receiving connections
     ]
     return gs
