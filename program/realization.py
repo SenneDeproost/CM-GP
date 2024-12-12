@@ -13,7 +13,7 @@ from numpy import ndarray
 
 from config import CartesianConfig
 from envs.simple_envs import SimpleGoalEnv
-from population import Genome, OperatorGeneSpace, generate_cartesian_genome_space, genes_per_node
+from population import Genome, OperatorGeneSpace, generate_cartesian_genome_space, genes_per_node, EMPTY
 from program.operators import Operator, SIMPLE_OPERATORS, InputVar
 from dataclasses import dataclass, asdict
 
@@ -42,7 +42,7 @@ class Node:
 
         # Operator
         if isinstance(function, Operator):
-            print(self.function, self.connections)
+            #print(self.function, self.connections)
             return on_operator(self, input)
 
         # Input variable
@@ -54,7 +54,6 @@ class Node:
             return on_float(self, input)
 
         else:
-            print(function)
             raise ValueError("Node with invalid function type")
 
 
@@ -112,14 +111,15 @@ class CartesianProgram(Program):
             f_index, o_index, start_c_index, stop_c_index = (n_index,
                                                              n_index + 1,
                                                              n_index + 2,
-                                                             n_index + 1 + self.config.max_node_arity)
+                                                             n_index + 2 + self.config.max_node_arity)
             operator = self.genome.express_gene(f_index)  # Gene space has list of operators that can be realized
             output = self.genome.express_gene(o_index) == 1  # Translate binary value to boolean
 
             # Fist node cannot have any connections
-            connections = []
-            if i > 0:
-                connections = [int(self.genome.express_gene(j)) for j in range(start_c_index, stop_c_index)]
+            connections = [int(self.genome.express_gene(j)) for j in range(start_c_index, stop_c_index)]
+            # Filter out all empty connections
+            connections = [i for i in connections if i != EMPTY]
+
 
             # Transform into node abstraction and put into accumulator
             node = Node(operator, output, connections)
@@ -162,7 +162,7 @@ class CartesianProgram(Program):
         # Operator
         def on_operator(node: Node, input: Union[None, ndarray[float]]) -> Operator:
             operands = []
-            for operand in node.function.operands:
+            for operand in node.function.operands[:node.function.n_operands]:  # Todo: fix slice
                 operands.append(operand.traverse(input, on_operator, on_inputvar, on_float))
             return node.function(operands)
 
@@ -176,7 +176,8 @@ class CartesianProgram(Program):
 
         # Sum over all output nodes
         for o in outputs:
-            res += o.traverse(input, on_operator, on_inputvar, on_float)
+            r = o.traverse(input, on_operator, on_inputvar, on_float)
+            res += r
 
         return res
 
@@ -189,7 +190,7 @@ class CartesianProgram(Program):
         # Operator
         def on_operator(node: Node, input: Union[None, ndarray[float]]) -> str:
             operands = []
-            for operand in node.function.operands:
+            for operand in node.function.operands[:node.function.n_operands]:  # Todo: fix slice
                 operands.append(operand.traverse(input, on_operator, on_inputvar, on_float))
             return node.function.print(operands)
 

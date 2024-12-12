@@ -77,8 +77,8 @@ SIMPLE_OPERATORS = [
     Operator('/', 2, lambda x: 999 if -0.01 > x[1] > 0.01 else x[0] / x[1],
              lambda x: f'{bc(x[0])} / {bc(x[1])}'),
     Operator('||', 1, lambda x: abs(x[0]),
-             lambda x: f'|{x}|'),
-    Operator('exp', 1, lambda x: math.exp(x[0]),
+             lambda x: f'|{x[0]}|'),
+    Operator('exp', 1, lambda x: math.exp(99) if x[0] > 99 else math.exp(x[0]),
              lambda x: f'exp({x[0]})'),
     Operator('sin', 1, lambda x: math.sin(x[0]),
              lambda x: f'sin({x[0]})'),
@@ -90,10 +90,10 @@ SIMPLE_OPERATORS = [
              lambda x: f'neg({x[0]})'),
     Operator('id', 1, lambda x: x[0],
              lambda x: f'id({x[0]})'),
-    #Operator('>', 4, lambda x: x[2] if x[0] > x[1] else x[3],
-    #         lambda x: f'{x[2]} if {x[0]} > {x[1]} else {x[3]}'),
-    #Operator('<', 4, lambda x: x[2] if x[0] < x[1] else x[3],
-    #         lambda x: f'{x[2]} if {x[0]} < {x[1]} else {x[3]}'),
+    Operator('>', 4, lambda x: x[2] if x[0] > x[1] else x[3],
+             lambda x: f'{x[2]} if {x[0]} > {x[1]} else {x[3]}'),
+    Operator('<', 4, lambda x: x[2] if x[0] < x[1] else x[3],
+             lambda x: f'{x[2]} if {x[0]} < {x[1]} else {x[3]}'),
 ]
 
 OPERATOR_SETS = [SIMPLE_OPERATORS]

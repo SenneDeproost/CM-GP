@@ -319,7 +319,7 @@ class CartesianPopulation(Population):
         # gene 2 to 2+max_arity-1 -> determined the arity of operator in set with the highest number of operands
 
         #inputvar_range = (-len(operators) - self.n_inputs, -len(operators))
-        operator_range = GeneRange(range=(-len(operators) - self.n_inputs, self.config.max_constant))
+        operator_range = GeneRange(range=(-len(operators) - self.n_inputs + 1, self.config.max_constant))
 
         # Construct genome space
 
@@ -330,7 +330,7 @@ class CartesianPopulation(Population):
 
             # Todo: check this
             # Ensure DAG by only connecting to previous node indices in loop
-            connection_range = GeneRange() if i_node == 0 else GeneRange(range=(0, i_node - 1))
+            connection_range = GeneRange() if i_node < self.n_inputs else GeneRange(range=(0, i_node - 1))
 
             # The first nodes should be input nodes
             if i_node <= self.n_inputs - 1:
