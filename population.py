@@ -160,9 +160,9 @@ class OperatorGeneSpace(GeneSpace):
 # Todo: Check if exclusion works here
 # Gene space for output nodes
 class BinaryGeneSpace(GeneSpace):
-    def __init__(self) -> None:
+    def __init__(self, gene_range: GeneRange = GeneRange(values=[0, 1])) -> None:
         # Boolean gene range
-        super().__init__(GeneRange(values=[0, 1]))
+        super().__init__(gene_range)
 
     # Just return the value
     def __getitem__(self, value: int, *args, **kwargs) -> int:
@@ -348,9 +348,9 @@ class CartesianPopulation(Population):
 
                     OperatorGeneSpace(gene_range=input_range, operators=operators),
 
-                    # Output node or not
+                    # First index variables cannot be output nodes
 
-                    BinaryGeneSpace(),
+                    BinaryGeneSpace(GeneRange(values=[0])),
 
                     # Connections
                     *[IntegerGeneSpace(connection_range) for _ in range(self.config.max_node_arity)]
