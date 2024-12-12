@@ -62,7 +62,7 @@ class GeneRange:
         if self.empty:
             return False
         # Range
-        elif not(self.range is None):
+        elif not (self.range is None):
             return self.range[0] <= value <= self.range[1]
         # Values
         elif not (self.values is None):
@@ -96,7 +96,7 @@ class GeneSpace:
 
             # Normal uniform sampling float
             case 'uniform':
-                if not(self.gene_range.values is None):
+                if not (self.gene_range.values is None):
                     return np.random.choice(self.gene_range.values)
                 else:
                     assert self.gene_range.range is not None, "Gene values not from range"
@@ -105,6 +105,18 @@ class GeneSpace:
             # Invalid sampling strategy
             case _:
                 raise ValueError(f'Unknown sampling strategy {strategy}')
+
+    # Ensure the value is within range or in between values
+    def contain(self, value: Union[int, float]) -> Union[int, float]:
+
+        c = self.gene_range.range if self.gene_range.range is not None else self.gene_range.values
+
+        if value <= c[0]:
+            return c[0]
+        elif value >= c[-1]:
+            return c[-1]
+        else:
+            return value
 
     # Different types of rounding possible
     @staticmethod
@@ -152,7 +164,6 @@ class OperatorGeneSpace(GeneSpace):
 
         return value
 
-
     def __str__(self) -> str:
         return f'Operator gene space with {str(self.gene_range)}'
 
@@ -167,8 +178,7 @@ class BinaryGeneSpace(GeneSpace):
     # Just return the value
     def __getitem__(self, value: int, *args, **kwargs) -> int:
         v = self._round(value)
-        assert self.gene_range.contains(v), 'Value out of gene range'   # Check after rounding
-        return v
+        return self.contain(v)
 
     # Todo: Solve loop when rounding stochastic
     # Sample with exclusions taken into account
@@ -350,7 +360,8 @@ class CartesianPopulation(Population):
 
                     # First index variables cannot be output nodes
 
-                    BinaryGeneSpace(GeneRange(values=[0])),
+                    #BinaryGeneSpace(GeneRange(values=[0])),
+                    BinaryGeneSpace(),
 
                     # Connections
                     *[IntegerGeneSpace(connection_range) for _ in range(self.config.max_node_arity)]
