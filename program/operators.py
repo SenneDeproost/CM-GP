@@ -90,10 +90,10 @@ SIMPLE_OPERATORS = [
              lambda x: f'neg({x[0]})'),
     Operator('id', 1, lambda x: x[0],
              lambda x: f'id({x[0]})'),
-    Operator('>', 4, lambda x: x[2] if x[0] > x[1] else x[3],
-             lambda x: f'{x[2]} if {x[0]} > {x[1]} else {x[3]}'),
-    Operator('<', 4, lambda x: x[2] if x[0] < x[1] else x[3],
-             lambda x: f'{x[2]} if {x[0]} < {x[1]} else {x[3]}'),
+    #Operator('>', 4, lambda x: x[2] if x[0] > x[1] else x[3],
+    #         lambda x: f'{x[2]} if {x[0]} > {x[1]} else {x[3]}'),
+    #Operator('<', 4, lambda x: x[2] if x[0] < x[1] else x[3],
+    #         lambda x: f'{x[2]} if {x[0]} < {x[1]} else {x[3]}'),
 ]
 
 OPERATOR_SETS = [SIMPLE_OPERATORS]

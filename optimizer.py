@@ -13,6 +13,9 @@ from program.operators import Operator, SIMPLE_OPERATORS
 from config import *
 import gymnasium as gym
 
+from program.realization import Program, CartesianProgram
+
+
 class PyGADOptimizer:
     def __init__(self, config: OptimizerConfig, operators: List[Operator], state_space: gym.Space) -> None:
         self.config = config
@@ -24,7 +27,7 @@ class PyGADOptimizer:
         # Optimizer instance
         self._optim = self._init_optimizer()
 
-        self.best_solution = self.population[0]
+        self.best_solution_index = 0
         self.best_fitness = -np.inf
 
     # Dunder describing
@@ -48,7 +51,7 @@ class PyGADOptimizer:
             keep_parents= c.elitism,
             save_solutions=True,
             save_best_solutions=True,
-            parallel_processing=["processes", None],  # Utilize all available resources
+            parallel_processing=["process", None],  # Utilize all available resources
             # Crossover
             mutation_probability=c.gene_mutation_prob,
             mutation_type=c.mutation,
@@ -71,6 +74,11 @@ class PyGADOptimizer:
     # Fit the produced actions to more optimal ones
     def fit(self, critic_states, critic_actions) -> None:
         pass
+
+    # Return realization of the best genome as a program
+    def get_best_program(self) -> Program:
+        prog = self.population.realize(self.best_solution_index)
+        return prog
 
 
 

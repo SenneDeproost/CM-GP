@@ -123,6 +123,9 @@ class TrainingConfig:
     # Agent
     agent: AgentConfig = field(default_factory=AgentConfig)
 
+    # Amount of time steps to learn
+    timesteps: int = field(default=10_000)
+
 
 @dataclass
 class ExperimentConfig:
@@ -140,6 +143,9 @@ class ExperimentConfig:
     deterministic: bool = field(default=True)
     # CUDA use
     cuda: bool = field(default=False)
+
+    # Environment id
+    env_id: str = field(default='SimpleGoal-v0')
 
 
 if __name__ == "__main__":

@@ -14,6 +14,7 @@ import gymnasium as gym
 
 from program import operators
 from program.operators import Operator, SIMPLE_OPERATORS, InputVar
+from program.realization import CartesianProgram
 
 EMPTY = -1
 
@@ -410,14 +411,14 @@ class CartesianPopulation(Population):
     # Get the realization of genome with index
     def realize(self, index):
         individual = self.individuals[index]
-        realization = individual.realize()
+        realization = CartesianProgram(individual.genes)
         return realization
 
     # Realize the whole population
     def realize_all(self):
         res = []
-        for individual in self.individuals:
-            individual.realize()
+        for i, individual in enumerate(self.individuals):
+            self.realize(i)
         return res
 
 
