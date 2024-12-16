@@ -2,106 +2,261 @@
 #
 # Sets of domain-specific operators
 #
-# 27/11/2024 - Senne Deproost & Denis Steckelmacher
+# 16/12/2024 - Senne Deproost
 
 from typing import List, Callable, Union
 import math
 import numpy as np
 
 
+# Check if brackets are needed (Bracket Check)
+def bc(x: str):
+    if isinstance(x, (list, tuple, np.ndarray)):
+        if '(' in x:
+            return f'({x})'
+        else:
+            return x
+    else:
+        return x
+
+
 # Simple operator for Python function
 class Operator:
-    def __init__(self, name: str, n_operands: int, function: Callable, print: Callable) -> None:
+    def __init__(self, name: str, n_operands: int) -> None:
         self.name = name
         self.n_operands = n_operands
-        self.function = function
-        self.print = print
         self.operands = []
+
+    # Dunder for call, used to check given values
+    def __call__(self, x: np.ndarray) -> None:
+        assert len(x) == self.n_operands, "Incorrect of arguments given to function"
 
     # Dunder for operator name
     def __str__(self) -> str:
         return self.name
 
-    # Get string representation of operator with operands
-    # Dunder for operator name
-    def get_string(self, operands: Union[list[str]]) -> str:
-        return f'{self.print(operands)}'
 
-    # Dunder for callable
-    def __call__(self, input) -> float:
-        return self.function(input)
+##### OPERATORS
 
-    # Build the lambda
-    def build(self, input) -> tuple[Callable, np.ndarray[float]]:
-        return self.function, input
+class Add(Operator):
 
+    def __init__(self) -> None:
+        self.name = '+'
+        self.n_operands = 2
 
-# Abstraction for input variable ot the program
-class InputVar:
-    def __init__(self, index):
-        self.index = index
+        super().__init__(self.name, self.n_operands)
 
-    # Lambda that can access the given observation at any index
-    def __call__(self, input) -> callable:
-        return input[self.index]
+    def __call__(self, x: np.ndarray[float]) -> float:
+        return x[0] + x[1]
 
-    # Dunder for input variable index
-    def __str__(self) -> str:
-        return f'input_{self.index}'
-
-    # Get string representation with inputs
-    def to_string(self, input: np.ndarray[float]) -> str:
-        if input is None:
-            return self.__str__()
-        else:
-            return f'{input[self.index]}'
+    @staticmethod
+    def print(x: np.ndarray[float]) -> str:
+        return f'{x[0]} + {x[1]}'
 
 
-# Check if brackets are needed (Bracket Check)
-def bc(x: str) -> str:
-    if '(' in x:
-        return f'({x})'
-    else:
-        return x
+class Sub(Operator):
+
+    def __init__(self) -> None:
+        self.name = '-'
+        self.n_operands = 2
+
+        super().__init__(self.name, self.n_operands)
+
+    def __call__(self, x: np.ndarray[float]) -> float:
+        return x[0] - x[1]
+
+    @staticmethod
+    def print(x: np.ndarray[float]) -> str:
+        return f'{x[0]} - {x[1]}'
 
 
-SIMPLE_OPERATORS = [
-    Operator('+', 2, lambda x: x[0] + x[1],
-             lambda x: f'{x[0]} + {x[1]}'),
-    Operator('-', 2, lambda x: x[0] - x[1],
-             lambda x: f'{x[0]} - {x[1]}'),
-    Operator('%', 2, lambda x: x[0] % x[1],
-             lambda x: f'{x[0]} % {x[1]}'),
-    Operator('*', 2, lambda x: x[0] * x[1],
-             lambda x: f'{bc(x[0])} * {bc(x[1])}'),
-    Operator('/', 2, lambda x: 999 if -0.01 > x[1] > 0.01 else x[0] / x[1],
-             lambda x: f'{bc(x[0])} / {bc(x[1])}'),
-    Operator('||', 1, lambda x: abs(x[0]),
-             lambda x: f'|{x[0]}|'),
-    Operator('exp', 1, lambda x: math.exp(99) if x[0] > 99 else math.exp(x[0]),
-             lambda x: f'exp({x[0]})'),
-    Operator('sin', 1, lambda x: math.sin(x[0]),
-             lambda x: f'sin({x[0]})'),
-    Operator('cos', 1, lambda x: math.cos(x[0]),
-             lambda x: f'cos({x[0]})'),
-    Operator('log', 1, lambda x: -999 if x[0] < 0.01 else math.log(x[0]),
-             lambda x: f'log({x[0]})'),
-    Operator('neg', 1, lambda x: -x[0],
-             lambda x: f'neg({x[0]})'),
-    Operator('id', 1, lambda x: x[0],
-             lambda x: f'id({x[0]})'),
-    #Operator('>', 4, lambda x: x[2] if x[0] > x[1] else x[3],
-    #         lambda x: f'{x[2]} if {x[0]} > {x[1]} else {x[3]}'),
-    #Operator('<', 4, lambda x: x[2] if x[0] < x[1] else x[3],
-    #         lambda x: f'{x[2]} if {x[0]} < {x[1]} else {x[3]}'),
-]
+class Mod(Operator):
 
-OPERATOR_SETS = [SIMPLE_OPERATORS]
+    def __init__(self) -> None:
+        self.name = '%'
+        self.n_operands = 2
 
-if __name__ == '__main__':
-    i = InputVar(0)
-    for operator_set in OPERATOR_SETS:
-        print(f"Set: {operator_set}")
-        for operator in operator_set:
-            print(f" Operator: {operator}")
-        print("--------------")
+        super().__init__(self.name, self.n_operands)
+
+    def __call__(self, x: np.ndarray[float]) -> float:
+        return x[0] % x[1]
+
+    @staticmethod
+    def print(x: np.ndarray[float]) -> str:
+        return f'{x[0]} % {x[1]}'
+
+
+class Mul(Operator):
+
+    def __init__(self) -> None:
+        self.name = '*'
+        self.n_operands = 2
+
+        super().__init__(self.name, self.n_operands)
+
+    def __call__(self, x: np.ndarray[float]) -> float:
+        return x[0] * x[1]
+
+    @staticmethod
+    def print(x: np.ndarray[float]) -> str:
+        return f'{bc(x[0])} * {bc(x[1])}'
+
+
+class Div(Operator):
+
+    def __init__(self) -> None:
+        self.name = '/'
+        self.n_operands = 2
+
+        super().__init__(self.name, self.n_operands)
+
+    def __call__(self, x: np.ndarray[float]) -> float:
+        return 999 if -0.01 > x[1] > 0.01 else x[0] / x[1]
+
+    @staticmethod
+    def print(x: np.ndarray[float]) -> str:
+        return f'{bc(x[0])} / {bc(x[1])}'
+
+
+class Abs(Operator):
+
+    def __init__(self) -> None:
+        self.name = '||'
+        self.n_operands = 1
+
+        super().__init__(self.name, self.n_operands)
+
+    def __call__(self, x: np.ndarray[float]) -> float:
+        return abs(x[0])
+
+    @staticmethod
+    def print(x: np.ndarray[float]) -> str:
+        return f'|{x[0]}|'
+
+
+class Exp(Operator):
+
+    def __init__(self) -> None:
+        self.name = 'exp'
+        self.n_operands = 1
+
+        super().__init__(self.name, self.n_operands)
+
+    def __call__(self, x: np.ndarray[float]) -> float:
+        return math.exp(99) if x[0] > 99 else math.exp(x[0])
+
+    @staticmethod
+    def print(x: np.ndarray[float]) -> str:
+        return f'exp({x[0]})'
+
+
+class Sin(Operator):
+
+    def __init__(self) -> None:
+        self.name = 'sin'
+        self.n_operands = 1
+
+        super().__init__(self.name, self.n_operands)
+
+    def __call__(self, x: np.ndarray[float]) -> float:
+        return math.sin(x[0])
+
+    @staticmethod
+    def print(x: np.ndarray[float]) -> str:
+        return f'sin({x[0]})'
+
+
+class Cos(Operator):
+
+    def __init__(self) -> None:
+        self.name = 'cos'
+        self.n_operands = 1
+
+        super().__init__(self.name, self.n_operands)
+
+    def __call__(self, x: np.ndarray[float]) -> float:
+        return math.cos(x[0])
+
+    @staticmethod
+    def print(x: np.ndarray[float]) -> str:
+        return f'cos({x[0]})'
+
+
+class Log(Operator):
+
+    def __init__(self) -> None:
+        self.name = 'log'
+        self.n_operands = 1
+
+        super().__init__(self.name, self.n_operands)
+
+    def __call__(self, x: np.ndarray[float]) -> float:
+        return -999 if x[0] < 0.01 else math.log(x[0])
+
+    @staticmethod
+    def print(x: np.ndarray[float]) -> str:
+        return f'log({x[0]})'
+
+
+class Neg(Operator):
+
+    def __init__(self) -> None:
+        self.name = 'neg'
+        self.n_operands = 1
+
+        super().__init__(self.name, self.n_operands)
+
+    def __call__(self, x: np.ndarray[float]) -> float:
+        return -x[0]
+
+    @staticmethod
+    def print(x: np.ndarray[float]) -> str:
+        return f'neg({x[0]})'
+
+
+class Id(Operator):
+
+    def __init__(self) -> None:
+        self.name = 'id'
+        self.n_operands = 1
+
+        super().__init__(self.name, self.n_operands)
+
+    def __call__(self, x: np.ndarray[float]) -> float:
+        return x[0]
+
+    @staticmethod
+    def print(x: np.ndarray[float]) -> str:
+        return f'id({x[0]})'
+
+
+class Grt(Operator):
+
+    def __init__(self) -> None:
+        self.name = '>'
+        self.n_operands = 4
+
+        super().__init__(self.name, self.n_operands)
+
+    def __call__(self, x: np.ndarray[float]) -> float:
+        return x[2] if x[0] > x[1] else x[3]
+
+    @staticmethod
+    def print(x: np.ndarray[float]) -> str:
+        return f'{x[2]} if {x[0]} > {x[1]} else {x[3]}'
+
+
+class Sml(Operator):
+
+    def __init__(self) -> None:
+        self.name = '<'
+        self.n_operands = 4
+
+        super().__init__(self.name, self.n_operands)
+
+    def __call__(self, x: np.ndarray[float]) -> float:
+        return x[2] if x[0] < x[1] else x[3]
+
+    @staticmethod
+    def print(x: np.ndarray[float]) -> str:
+        return f'{x[2]} if {x[0]} < {x[1]} else {x[3]}'

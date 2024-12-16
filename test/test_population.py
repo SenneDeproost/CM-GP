@@ -3,18 +3,16 @@ from exceptiongroup import catch
 import test
 from config import OptimizerConfig
 from population import generate_cartesian_genome_space, CartesianPopulation
-from program.operators import SIMPLE_OPERATORS
+from program import SIMPLE_OPERATORS
 from program.realization import CartesianProgram
 
 
 def test_random_program_from_population():
     space = test.SMALL_OBS_SPACE
-    input_size = space.shape[0]
 
     c = OptimizerConfig()
     c.program.n_nodes = 10#c.program.max_node_arity  # Minimal amount of nodes for operator with highest n_operands
-    c.n_individuals = 1000
-    #gs = generate_cartesian_genome_space(c.program, input_size)
+    c.n_individuals = 10000
 
     i = test.SMALl_INPUT
     pop = CartesianPopulation(c, SIMPLE_OPERATORS, space)

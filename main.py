@@ -14,14 +14,13 @@ import torch.optim as optim
 
 from stable_baselines3.common.buffers import ReplayBuffer
 from torch.utils.tensorboard import SummaryWriter
-from program.operators import SIMPLE_OPERATORS
 from torch.autograd import grad
 
 from optimizer import PyGADOptimizer
 from config import ExperimentConfig
 
 import envs
-from program.operators import SIMPLE_OPERATORS
+from program import SIMPLE_OPERATORS
 
 
 def make_env(env_id, seed, idx, capture_video, run_name):
@@ -56,7 +55,8 @@ def get_state_actions(program_optimizers, obs, env, args):
         action = np.zeros(env.action_space.shape, dtype=np.float32)
 
         for action_index in range(env.action_space.shape[0]):
-            action[action_index] = program_optimizers[action_index].get_action(o)
+            program = program_optimizers[action_index].best_program
+            action[action_index] = program(o)
 
         program_actions.append(action)
 
@@ -103,7 +103,7 @@ def run_synthesis(args: ExperimentConfig):
     ) for i in range(env.action_space.shape[0])]
 
     for action_index in range(env.action_space.shape[0]):
-        print(f"a[{action_index}] = {program_optimizers[action_index].get_best_program()}")
+        print(f"a[{action_index}] = {program_optimizers[action_index].best_program}")
 
     qf1 = QNetwork(env).to(device)
     qf2 = QNetwork(env).to(device)
@@ -129,12 +129,12 @@ def run_synthesis(args: ExperimentConfig):
     for global_step in range(args.training.timesteps):
 
         # ALGO LOGIC: put action logic here
-        if global_step < args.learning_starts:
+        if global_step < args.training.start_learning:
             action = env.action_space.sample()
         else:
             with torch.no_grad():
                 action = get_state_actions(program_optimizers, obs[None, :], env, args)[0]
-                action = np.random.normal(loc=action, scale=args.policy_noise)
+                action = np.random.normal(loc=action, scale=args.training.agent.policy_noise)
                 print('ACTION', action)
 
         # TRY NOT TO MODIFY: execute the game and log data.
@@ -158,15 +158,17 @@ def run_synthesis(args: ExperimentConfig):
         obs = next_obs
 
         # ALGO LOGIC: training.
-        if global_step > args.learning_starts:
-            data = rb.sample(args.batch_size)
+        if global_step > args.training.start_learning:
+            data = rb.sample(args.training.agent.batch_size)
             with torch.no_grad():
-                clipped_noise = (torch.randn_like(data.actions, device=device) * args.policy_noise).clamp(
-                    -args.noise_clip, args.noise_clip
+                clipped_noise = (torch.randn_like(
+                    data.actions, device=device) * args.training.agent.policy_noise).clamp(
+                    -args.training.agent.noise_clip, args.training.agent.noise_clip
                 )
 
                 # Go over all observations the buffer provides
-                next_state_actions = get_state_actions(program_optimizers, data.next_observations.detach().numpy(), env, args)
+                next_state_actions = get_state_actions(program_optimizers,
+                                                       data.next_observations.detach().numpy(), env, args)
                 next_state_actions = torch.tensor(next_state_actions)
                 next_state_actions = (next_state_actions + clipped_noise).clamp(
                     env.action_space.low[0], env.action_space.high[0]).float()
@@ -174,7 +176,7 @@ def run_synthesis(args: ExperimentConfig):
                 qf1_next_target = qf1_target(data.next_observations, next_state_actions)
                 qf2_next_target = qf2_target(data.next_observations, next_state_actions)
                 min_qf_next_target = torch.min(qf1_next_target, qf2_next_target)
-                next_q_value = data.rewards.flatten() + (1 - data.dones.flatten()) * args.gamma * (
+                next_q_value = data.rewards.flatten() + (1 - data.dones.flatten()) * args.training.agent.gamma * (
                     min_qf_next_target).view(-1)
 
             qf1_a_values = qf1(data.observations, data.actions).view(-1)
@@ -190,8 +192,9 @@ def run_synthesis(args: ExperimentConfig):
             q_optimizer.step()
 
             # Optimize the program
-            if global_step % args.policy_frequency == 0:
-                orig_program_actions = get_state_actions(program_optimizers, data.observations.detach().numpy(), env, args)
+            if global_step % args.training.policy_update == 0:
+                orig_program_actions = get_state_actions(program_optimizers,
+                                                         data.observations.detach().numpy(), env, args)
                 cur_program_actions = np.copy(orig_program_actions)
                 print('BEFORE ACTIONS', orig_program_actions[0])
 
@@ -218,13 +221,14 @@ def run_synthesis(args: ExperimentConfig):
 
                 for action_index in range(env.action_space.shape[0]):
                     program_optimizers[action_index].fit(states, actions[:, action_index])
-                    print(f"a[{action_index}] = {program_optimizers[action_index].get_best_solution_str()}")
+                    print(f"a[{action_index}] = {program_optimizers[action_index].best_program}")
 
             # update the target network
+            tau = args.training.agent.tau
             for param, target_param in zip(qf1.parameters(), qf1_target.parameters()):
-                target_param.data.copy_(args.tau * param.data + (1 - args.tau) * target_param.data)
+                target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
             for param, target_param in zip(qf2.parameters(), qf2_target.parameters()):
-                target_param.data.copy_(args.tau * param.data + (1 - args.tau) * target_param.data)
+                target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
 
             if global_step % 10 == 0:
                 writer.add_scalar("losses/qf1_values", qf1_a_values.mean().item(), global_step)

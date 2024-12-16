@@ -1,7 +1,7 @@
 import test
 from config import CartesianConfig
 from population import Genome, generate_cartesian_genome_space, genes_per_node
-from program.operators import SIMPLE_OPERATORS
+from program import SIMPLE_OPERATORS
 from program.realization import CartesianProgram
 
 

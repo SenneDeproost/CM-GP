@@ -14,7 +14,7 @@ from numpy import ndarray
 from config import CartesianConfig
 from envs.simple_envs import SimpleGoalEnv
 from population import Genome, OperatorGeneSpace, generate_cartesian_genome_space, genes_per_node, EMPTY
-from program.operators import Operator, SIMPLE_OPERATORS, InputVar
+from program import Operator, SIMPLE_OPERATORS, InputVar
 from dataclasses import dataclass, asdict
 
 
@@ -83,8 +83,8 @@ class CartesianProgram(Program):
         self._str = self.to_string()
 
     # Call dunder for easy execution
-    def __call__(self, input: List[float]) -> float:
-        res = self.evaluate(*input)
+    def __call__(self, input: ndarray[float]) -> float:
+        res = self.evaluate(input)
         return res
 
     # Dunder describing program

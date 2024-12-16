@@ -70,23 +70,25 @@ class OptimizerConfig:
     # Configuration for type of program
     program: Union[CartesianConfig] = field(default=CartesianConfig)
     # Number of individuals in population
-    n_individuals: int = field(default=100)
+    n_individuals: int = field(default=10)
     # Number of generations
-    n_generations: int = field(default=10)
+    n_generations: int = field(default=1)
     # Number of parents mating
-    n_parents_mating: int = field(default=90)
+    n_parents_mating: int = field(default=9)
     # Probability of gene mutation
     gene_mutation_prob: float = field(default=0.05)
     # How many elites to keep
-    elitism: int = field(default=5)
+    elitism: int = field(default=2)
     # Type of mutation
     mutation: str = field(default='random')
     # Range of mutation values
-    mutation_val: tuple[float, float] = field(default=(-999.0, 999.0))
+    mutation_val: tuple[float, float] = field(default=(-99.0, 99.0))
     # Type of crossover
     crossover: str = field(default='single_point')
     # Type of parent selection
     parent_selection: str = field(default='sss')
+    # Batch size of states to be used by the optimizer Todo: Check if two separate batch sizes doesn't cause problems
+    batch_size: int = field(default=256)
 
 
 
@@ -95,7 +97,7 @@ class AgentConfig:
     """Configuration for the Reinforcement Learning Agent"""
 
     # Size of replay buffer
-    buffer_size: int = field(default=1e6)
+    buffer_size: int = field(default=int(1e6))
     # Learning rate of network optimizer
     learning_rate: float = field(default=3e-4)
     # Discount factor
@@ -106,10 +108,6 @@ class AgentConfig:
     batch_size: int = field(default=256)
     # Scale of the policy noise
     policy_noise: float = field(default=0.1)
-    # Timestep to start learning
-    start_learning: int = field(default=100)
-    # Frequency of training the policy
-    policy_update: int = field(default=128)
     # Noise clip of the Target Policy Smoothing Regularization
     noise_clip: float = field(default=0.5)
 
@@ -125,6 +123,11 @@ class TrainingConfig:
 
     # Amount of time steps to learn
     timesteps: int = field(default=10_000)
+
+    # Timestep to start learning
+    start_learning: int = field(default=100)
+    # Frequency of training the policy
+    policy_update: int = field(default=128)
 
 
 @dataclass

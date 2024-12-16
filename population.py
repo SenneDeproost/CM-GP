@@ -12,9 +12,7 @@ from tensorflow.python.ops.gen_nn_ops import selu_grad
 from config import CartesianConfig, OptimizerConfig
 import gymnasium as gym
 
-from program import operators
-from program.operators import Operator, SIMPLE_OPERATORS, InputVar
-from program.realization import CartesianProgram
+from program import Operator, SIMPLE_OPERATORS, InputVar
 
 EMPTY = -1
 
@@ -72,7 +70,10 @@ class GeneRange:
     # Translate for optimizer
     def description(self) -> Union[dict, list]:
         if self.range is None:
-            return self.values
+            if self.values is None:
+                return [0]  # Todo: Proper resolvement
+            else:
+                return self.values
         else:
             return {
                 'low': self.range[0],
@@ -216,7 +217,7 @@ class IntegerGeneSpace(GeneSpace):
     def __str__(self) -> str:
         return f'Integer gene space {str(self.gene_range)}'
 
-
+# Todo: Keep indices of the type of nodes
 # Genome of individual program
 class Genome:
     def __init__(self, genome_space: List[GeneSpace], n_genes: Union[int, None] = None,
@@ -296,9 +297,10 @@ def has_output(genome: Genome, config: CartesianConfig) -> bool:
 
 
 # Resolve genomes with no output node
-def resolve_output(genome: Genome) -> None:
-    # Make first node an output node
-    genome.genes[1] = 1
+def resolve_output(genome: Genome, config: CartesianConfig) -> None:
+    # Make last node an output node
+    i = -(config.max_node_arity + 1)
+    genome.genes[i] = 1
 
 
 # Population for Cartesian representation
@@ -310,6 +312,7 @@ class CartesianPopulation(Population):
         self.config = config.program
         self.optim_config = config
         self.state_space = state_space
+        self.operators = operators
 
         self.genes_per_node = genes_per_node(self.config)
         self.n_genes = self.config.n_nodes * self.genes_per_node
@@ -334,7 +337,7 @@ class CartesianPopulation(Population):
 
         # Construct genome space
 
-        # Todo: [!] proper genone spaces can be give to PyGad optimizer
+        # Todo: [!] proper genome spaces can be give to PyGad optimizer
         self.genome_space = []
 
         for i_node in range(self.config.n_nodes):
@@ -393,9 +396,10 @@ class CartesianPopulation(Population):
                          self.genome_space)
 
         # Resolve output
+        # Implement better resolvement
         for genome in self.individuals:
             if not has_output(genome, config=self.config):
-                resolve_output(genome)
+                resolve_output(genome, config=self.config)
 
     def __str__(self) -> str:
         return f'Cartesian pop with {self.n_individuals} individuals of genome length {self.n_genes}'
@@ -410,8 +414,14 @@ class CartesianPopulation(Population):
 
     # Get the realization of genome with index
     def realize(self, index):
+        from program.realization import CartesianProgram
         individual = self.individuals[index]
-        realization = CartesianProgram(individual.genes)
+        realization = CartesianProgram(
+            genome=individual,
+            input_space=self.state_space,
+            operators=self.operators,
+            config=self.config,
+        )
         return realization
 
     # Realize the whole population
@@ -421,8 +431,21 @@ class CartesianPopulation(Population):
             self.realize(i)
         return res
 
+    # Get range description for PyGad optimizer
+    def range_description(self) -> List[dict]:
+        res = []
+        for node in self.genome_space:
+            for gen in node:
+                res.append(gen.gene_range.description())
+        return res
 
-# Todo: check role of input_size
+    # Update all genes of the population
+    def update(self, new_population: np.ndarray[float]) -> None:
+        for i, genome in enumerate(self.individuals):
+            self.individuals[i].genes = new_population[i]
+
+
+    # Todo: check role of input_size
 # Generate Cartesian gene space
 def generate_cartesian_genome_space(config: CartesianConfig, input_size: int) -> List[GeneSpace]:
     gs = [

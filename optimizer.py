@@ -8,37 +8,59 @@ import sys
 from typing import List
 import pygad
 import numpy as np
+from rich.box import SIMPLE
+
+import test
 from population import CartesianPopulation
-from program.operators import Operator, SIMPLE_OPERATORS
+from program import Operator, SIMPLE_OPERATORS
 from config import *
 import gymnasium as gym
 
 from program.realization import Program, CartesianProgram
 
 
+def print_fitness(ga, fitnesses):
+    print('F', fitnesses.mean(), file=sys.stderr)
+
+# Todo: Generic class, not fixed to CGP
 class PyGADOptimizer:
     def __init__(self, config: OptimizerConfig, operators: List[Operator], state_space: gym.Space) -> None:
         self.config = config
-        self.operators = operators
         self.state_space = state_space
+        self.operators = operators
 
         # Create the initial population
-        self.population = self._init_population()
-        # Optimizer instance
-        self._optim = self._init_optimizer()
+        self.population, self.raw_population = self._init_population()
+        self.range = self.population.range_description()
 
         self.best_solution_index = 0
         self.best_fitness = -np.inf
+        self.best_program = self.population.realize(self.best_solution_index)
+
+        self._critic_states, self._critic_actions = None, None
+
+        # Optimizer instance
+        self._optim = self._init_optimizer()
+
+    # Dunder for preventing certain methods to be pickled (issue with pickling lambda operators)
+    #def __getstate__(self):
+    #    state = self.__dict__.copy()
+    #    # Fields contain elements with non-pickelable lambdas in them
+    #    del state['population']
+    #    del state['best_program']
+    #   del state['operators']
+    #   return state
 
     # Dunder describing
     def __str__(self) -> str:
-        return f'PyGAD with pop size {self.config.n_individuals}, best fit {self.best_fitness}'
+        return f'PyGAD optimizer with pop size {self.config.n_individuals}, best fit {self.best_fitness}'
 
     # Create initial population
-    def _init_population(self) -> CartesianPopulation:
+    def _init_population(self) -> tuple[CartesianPopulation, np.ndarray]:
         c = self.config
         population = CartesianPopulation(c, self.operators, self.state_space)
-        return population
+        raw_population = population.raw_genes()
+        return population, raw_population
 
     # Initialize PyGAD optimizer
     def _init_optimizer(self) -> pygad.GA:
@@ -46,11 +68,13 @@ class PyGADOptimizer:
         instance = pygad.GA(
             # General
             fitness_func=self.fitness_function,
-            initial_population=self.population.raw_genes(),
+            initial_population=self.raw_population,
             num_generations=c.n_generations,
-            keep_parents= c.elitism,
+            keep_parents=c.elitism,
+            gene_space=self.range,
             save_solutions=True,
             save_best_solutions=True,
+            on_fitness=print_fitness,
             parallel_processing=["process", None],  # Utilize all available resources
             # Crossover
             mutation_probability=c.gene_mutation_prob,
@@ -65,36 +89,50 @@ class PyGADOptimizer:
 
         return instance
 
+    def fitness_function(self, _, solution, solution_index) -> float:
 
-    def fitness_function(self, _, soloution, soloution_index) -> float:
-        res = -np.inf
+        fitness = 0.0
 
-        return res
+        prog = self.population.realize(solution_index)
+
+        batch_size = self._critic_states.shape[0]
+
+        for i in range(batch_size):
+
+            # Calculate MSE between proposed and improved action
+            action = prog(self._critic_states[i])
+            desired_action = self._critic_actions[i]
+
+            fitness += (action - desired_action) ** 2
+
+        # Avg
+        fitness = -(fitness / batch_size)
+
+        return fitness
 
     # Fit the produced actions to more optimal ones
     def fit(self, critic_states, critic_actions) -> None:
-        pass
+        # Update internal field for state and actions from the critic
+        self._critic_states = critic_states
+        self._critic_actions = critic_actions
 
-    # Return realization of the best genome as a program
-    def get_best_program(self) -> Program:
-        prog = self.population.realize(self.best_solution_index)
-        return prog
+        # Reset initial population inside optimizer
+        self._optim.initial_population = self.raw_population  #self.population.raw_genes()
 
+        # Iterate with optimizer
+        self._optim.run()
+
+        # Update population
+        self.raw_population = self._optim.population
+        self.population.update(self._optim.population)
+
+        # Reset best program
+        self.best_program = self.population.realize(self.best_solution_index)
 
 
 if __name__ == "__main__":
-
     # Test for PyGAD optimizer
     config = OptimizerConfig()
-    env = gym.make('CartPole-v1')
-    env.reset()
-    space = env.observation_space
+    space = test.SMALL_OBS_SPACE
     optim = PyGADOptimizer(config, SIMPLE_OPERATORS, space)
     print(optim)
-
-
-
-
-
-
-
