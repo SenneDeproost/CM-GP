@@ -20,8 +20,7 @@ from dataclasses import dataclass, asdict
 
 # Encoding
 # gene 0: function of the node
-# gene 1: output node or not
-# gene 2 to 2+max_arity-1 -> determined the arity of operator in set with the highest number of operands
+# gene 1 to max_arity -> determined the arity of operator in set with the highest number of operands
 
 # Node as part of the Cartesian graph
 class Node:
@@ -103,35 +102,39 @@ class CartesianProgram(Program):
             'output': []
         }
 
-        # Go over each set of genes and capture node + indices of the output nodes
+        # Go over each set of genes representing a node, front to back
         for i in range(self.config.n_nodes):
 
             # Process
             n_index = i * _genes_per_node
-            f_index, o_index, start_c_index, stop_c_index = (n_index,
-                                                             n_index + 1,
-                                                             n_index + 2,
-                                                             n_index + 2 + self.config.max_node_arity)
+            f_index, start_c_index, stop_c_index = (n_index,
+                                                    n_index + 1,
+                                                    n_index + 1 + self.config.max_node_arity)
             operator = self.genome.express_gene(f_index)  # Gene space has list of operators that can be realized
-            output = self.genome.express_gene(o_index) == 1  # Translate binary value to boolean
 
             # Fist node cannot have any connections
             connections = [int(self.genome.express_gene(j)) for j in range(start_c_index, stop_c_index)]
             # Filter out all empty connections
             connections = [i for i in connections if i != EMPTY]
 
-
             # Transform into node abstraction and put into accumulator
-            node = Node(operator, output, connections)
+            node = Node(operator, False, connections)
             nodes['all'].append(node)
 
-            # Add node to output when indicated
-            if output:
-                nodes['output'].append(node)
+            # Go from back to front to read output genes
+
+        for i in range(self.config.n_outputs):
+            # Calculate index and grab node
+            idx = len(self.genome) - i - 1
+            o_index = self.genome.express_gene(idx)
+            node = nodes['all'][o_index]
+
+             # Make it an output node
+            node.output = True
+            nodes['output'].append(node)
 
         # Check if there is an output node, otherwise it is an invalid program
-        if len(nodes['output']) < 1:
-            raise ValueError(f"No output in {self.genome}")
+        assert len(nodes['output']) > 0, f"No output in {self.genome}"
 
         # Go over a second time for setting the connections and operands
         for node in nodes['all']:

@@ -19,7 +19,7 @@ EMPTY = -1
 
 # Calculate the amount of genes per node
 def genes_per_node(config: CartesianConfig) -> int:
-    n = 2 + config.max_node_arity
+    n = 1 + config.max_node_arity # One gene for function and rest for connection
     return n
 
 
@@ -217,6 +217,7 @@ class IntegerGeneSpace(GeneSpace):
     def __str__(self) -> str:
         return f'Integer gene space {str(self.gene_range)}'
 
+
 # Todo: Keep indices of the type of nodes
 # Genome of individual program
 class Genome:
@@ -315,22 +316,23 @@ class CartesianPopulation(Population):
         self.operators = operators
 
         self.genes_per_node = genes_per_node(self.config)
-        self.n_genes = self.config.n_nodes * self.genes_per_node
+        self.n_genes = self.config.n_nodes * self.genes_per_node + self.config.n_outputs
         self.n_inputs = np.prod(state_space.shape)
 
         # List of individuals that have been realized into programs recently
         self.realizations = []
 
-        # GCP encoding for N nodes with n_outputs and max_arity
-        # gene 0 -> N-1: function
-        # gene N -> 2N*max_arity - 1: connections made between max_arity nodes (-1 indication no connection)
-        # gene 2N*max_arity -> 2N*max_arity+n_outputs - 1: output nodes
-
-        # ---> Translatable as:
         # Node represented by
         # gene 0: function
-        # gene 1: output? --> Differs from CGPAX
-        # gene 2 to 2+max_arity-1 -> determined the arity of operator in set with the highest number of operands
+        # gene 1 to max_arity-1: operators
+
+        # last output_nodes genes: output indicators
+
+        #     <------------------- Genome -------------------->
+        #  */=/=/=/=/=/* | */=/=/=/=/=/=/=/=/=/=/* | */=/=/=/=/=/*
+        #    | | | | |   |  | | | | | | | | | |    |  | | | | | |
+        #  */=/=/=/=/=/* | */=/=/=/=/=/=/=/=/=/=/* | */=/=/=/=/=/*
+        #   <- Input ->  |     <- Operators ->     |  <- Output ->
 
         #inputvar_range = (-len(operators) - self.n_inputs, -len(operators))
         operator_range = GeneRange(range=(-len(operators) - self.n_inputs + 1, self.config.max_constant))
@@ -345,6 +347,10 @@ class CartesianPopulation(Population):
             # Todo: check this
             # Ensure DAG by only connecting to previous node indices in loop
             connection_range = GeneRange() if i_node < self.n_inputs else GeneRange(range=(0, i_node - 1))
+
+            #
+            # INPUT
+            #
 
             # The first nodes should be input nodes
             if i_node <= self.n_inputs - 1:
@@ -362,18 +368,16 @@ class CartesianPopulation(Population):
 
                     OperatorGeneSpace(gene_range=input_range, operators=operators),
 
-                    # First index variables cannot be output nodes
-
-                    #BinaryGeneSpace(GeneRange(values=[0])),
-                    BinaryGeneSpace(),
-
                     # Connections
                     *[IntegerGeneSpace(connection_range) for _ in range(self.config.max_node_arity)]
                 ])
 
 
+            #
+            # OPERATORS AND CONSTANTS
+            #
 
-
+            # Followed by operators
             else:
 
                 # Ensure that operators are not selected that require more operands than currently available
@@ -382,13 +386,24 @@ class CartesianPopulation(Population):
                     # Operator
                     OperatorGeneSpace(operator_range, operators),
 
-                    # Output
-                    BinaryGeneSpace(),
-
                     # Connections
                     *[IntegerGeneSpace(connection_range) for _ in range(self.config.max_node_arity)]
 
                 ])
+
+        #
+        # OUTPUT INDICATORS
+        #
+
+        # Followed by output indicators
+
+        output_range = GeneRange(range=(0, self.config.n_nodes - 1))
+
+        self.genome_space.append([
+
+            *[IntegerGeneSpace(output_range) for _ in range(self.config.n_outputs)]
+
+        ])
 
         # Create population from different gene spaces
         super().__init__(config.n_individuals,
@@ -397,9 +412,9 @@ class CartesianPopulation(Population):
 
         # Resolve output
         # Implement better resolvement
-        for genome in self.individuals:
-            if not has_output(genome, config=self.config):
-                resolve_output(genome, config=self.config)
+        #for genome in self.individuals:
+        #    if not has_output(genome, config=self.config):
+        #        resolve_output(genome, config=self.config)
 
     def __str__(self) -> str:
         return f'Cartesian pop with {self.n_individuals} individuals of genome length {self.n_genes}'
@@ -444,8 +459,9 @@ class CartesianPopulation(Population):
         for i, genome in enumerate(self.individuals):
             self.individuals[i].genes = new_population[i]
 
-
     # Todo: check role of input_size
+
+
 # Generate Cartesian gene space
 def generate_cartesian_genome_space(config: CartesianConfig, input_size: int) -> List[GeneSpace]:
     gs = [

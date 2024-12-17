@@ -55,11 +55,13 @@ class CartesianConfig:
     # Name of representation
     representation: str = 'Cartesian'
     # Number of nodes in Cartesian graph
-    n_nodes: int = field(default=6)
+    n_nodes: int = field(default=10)
     # Number maximum arity over the set of operators
     max_node_arity: int = field(default=4)
     # Highest number for constant
     max_constant: float = field(default=20)
+    # Amount of outputs
+    n_outputs: int = field(default=1)
 
 
 
@@ -70,11 +72,11 @@ class OptimizerConfig:
     # Configuration for type of program
     program: Union[CartesianConfig] = field(default=CartesianConfig)
     # Number of individuals in population
-    n_individuals: int = field(default=10)
+    n_individuals: int = field(default=100)
     # Number of generations
-    n_generations: int = field(default=1)
+    n_generations: int = field(default=5)
     # Number of parents mating
-    n_parents_mating: int = field(default=9)
+    n_parents_mating: int = field(default=90)
     # Probability of gene mutation
     gene_mutation_prob: float = field(default=0.05)
     # How many elites to keep
