@@ -24,10 +24,14 @@ def print_fitness(ga, fitnesses):
 
 # Todo: Generic class, not fixed to CGP
 class PyGADOptimizer:
-    def __init__(self, config: OptimizerConfig, operators: List[Operator], state_space: gym.Space) -> None:
+    def __init__(self,
+                 config: OptimizerConfig,
+                 operators_dict: dict[int, List[Operator]],
+                 state_space: gym.Space) -> None:
         self.config = config
         self.state_space = state_space
-        self.operators = operators
+        self.operators_dict = operators_dict
+        self.operators = [x for y in self.operators_dict.values() for x in y]
 
         # Create the initial population
         self.population, self.raw_population = self._init_population()
@@ -58,7 +62,7 @@ class PyGADOptimizer:
     # Create initial population
     def _init_population(self) -> tuple[CartesianPopulation, np.ndarray]:
         c = self.config
-        population = CartesianPopulation(c, self.operators, self.state_space)
+        population = CartesianPopulation(c, self.operators_dict, self.state_space)
         raw_population = population.raw_genes()
         return population, raw_population
 

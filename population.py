@@ -12,14 +12,14 @@ from tensorflow.python.ops.gen_nn_ops import selu_grad
 from config import CartesianConfig, OptimizerConfig
 import gymnasium as gym
 
-from program import Operator, SIMPLE_OPERATORS, InputVar
+from program import Operator, SIMPLE_OPERATORS, InputVar, SIMPLE_OPERATORS_DICT
 
 EMPTY = -1
 
 
 # Calculate the amount of genes per node
 def genes_per_node(config: CartesianConfig) -> int:
-    n = 1 + config.max_node_arity # One gene for function and rest for connection
+    n = 1 + config.max_node_arity  # One gene for function and rest for connection
     return n
 
 
@@ -308,12 +308,14 @@ def resolve_output(genome: Genome, config: CartesianConfig) -> None:
 class CartesianPopulation(Population):
     def __init__(self,
                  config: OptimizerConfig = OptimizerConfig(),
-                 operators: List[Operator] = SIMPLE_OPERATORS,
+                 operators_dict: dict[int, List[Operator]] = SIMPLE_OPERATORS_DICT,
                  state_space: gym.Space = None) -> None:
+        global min_allowed_index
         self.config = config.program
         self.optim_config = config
         self.state_space = state_space
-        self.operators = operators
+        self.operators_dict = operators_dict
+        self.operators = [x for y in self.operators_dict.values() for x in y]
 
         self.genes_per_node = genes_per_node(self.config)
         self.n_genes = self.config.n_nodes * self.genes_per_node + self.config.n_outputs
@@ -335,14 +337,25 @@ class CartesianPopulation(Population):
         #   <- Input ->  |     <- Operators ->     |  <- Output ->
 
         #inputvar_range = (-len(operators) - self.n_inputs, -len(operators))
-        operator_range = GeneRange(range=(-len(operators) - self.n_inputs + 1, self.config.max_constant))
 
         # Construct genome space
 
         # Todo: [!] proper genome spaces can be give to PyGad optimizer
         self.genome_space = []
+        highest_n_operands = max(self.operators_dict.keys())
+        min_allowed_operator_index = 1
 
         for i_node in range(self.config.n_nodes):
+
+            # Build the range of allowed operators
+            if i_node <= highest_n_operands:
+                # Operator range is based on the amount of preceding nodes
+                n_operators = len(self.operators_dict[i_node])
+                min_allowed_operator_index -= n_operators
+                operator_range = GeneRange(range=(min_allowed_operator_index, self.config.max_constant))
+            else:
+                # Normal restrictions on the whole set of operators
+                operator_range = GeneRange(range=(-len(self.operators) - self.n_inputs + 1, self.config.max_constant))
 
             # Todo: check this
             # Ensure DAG by only connecting to previous node indices in loop
@@ -360,13 +373,12 @@ class CartesianPopulation(Population):
                 # input_1 at 1
                 # etc..
 
-                input_range = GeneRange(values=[-len(operators) - i_node])
+                input_range = GeneRange(values=[-len(self.operators) - i_node])
 
                 self.genome_space.append([
 
                     # Operator, which is input variable of index i_node
-
-                    OperatorGeneSpace(gene_range=input_range, operators=operators),
+                    OperatorGeneSpace(gene_range=input_range, operators=self.operators),
 
                     # Connections
                     *[IntegerGeneSpace(connection_range) for _ in range(self.config.max_node_arity)]
@@ -384,12 +396,12 @@ class CartesianPopulation(Population):
                 self.genome_space.append([
 
                     # Operator
-                    OperatorGeneSpace(operator_range, operators),
+                    OperatorGeneSpace(operator_range, self.operators),
 
                     # Connections
                     *[IntegerGeneSpace(connection_range) for _ in range(self.config.max_node_arity)]
 
-                ])
+                    ])
 
         #
         # OUTPUT INDICATORS
@@ -489,5 +501,5 @@ if __name__ == '__main__':
     env = gym.make('CartPole-v1')
     env.reset()
     space = env.observation_space
-    pop = CartesianPopulation(config, SIMPLE_OPERATORS, space)
+    pop = CartesianPopulation(config, SIMPLE_OPERATORS_DICT, space)
     print(pop)

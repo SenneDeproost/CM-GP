@@ -34,9 +34,13 @@ class InputVar:
 
 # Lookup dictionary on the amount of operands
 
+# Dictionary needs to be continuous. If no operator with a certain n_operands exists, add empty list.
+
 # Simple operators
 
+# Operator dict is used to index operators with the amount of operands they use. For population creations mostly.
 SIMPLE_OPERATORS_DICT = {
+    0: [],
     1: [
         Sin(),
         Cos(),
@@ -53,6 +57,7 @@ SIMPLE_OPERATORS_DICT = {
         Div(),
         Mod(),
     ],
+    3: [],
     4: [
         Grt(),
         Sml()
