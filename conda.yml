@@ -1,6 +1,8 @@
 name: cm-gp
 channels:
   - defaults
+  - defaults/linux-64
+  - conda-forge
 dependencies:
   - blas=1.0=openblas
   - brotli=1.0.9=h80987f9_8
