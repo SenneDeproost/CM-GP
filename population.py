@@ -12,7 +12,7 @@ from tensorflow.python.ops.gen_nn_ops import selu_grad
 from config import CartesianConfig, OptimizerConfig
 import gymnasium as gym
 
-from program import Operator, SIMPLE_OPERATORS, InputVar, SIMPLE_OPERATORS_DICT
+from program import Operator, InputVar, SIMPLE_OPERATORS_DICT, SIMPLE_OPERATORS
 
 EMPTY = -1
 
@@ -225,7 +225,7 @@ class Genome:
                  pop_index: int = -1,
                  genes: np.ndarray = None) -> None:
         self.n_genes = n_genes
-        self.genome_space = [y for x in genome_space for y in x]  # Flatten incoming genome space
+        self.genome_space = genome_space  #[y for x in genome_space for y in x]  # Flatten incoming genome space
         self.pop_index = pop_index
 
         # Check if genes are given or need to be initialized by the genome
@@ -304,6 +304,83 @@ def resolve_output(genome: Genome, config: CartesianConfig) -> None:
     genome.genes[i] = 1
 
 
+# Generate Cartesian gene space
+def generate_cartesian_genome_space(config: CartesianConfig,
+                                    n_inputs: int,
+                                    operators_dict: dict[int, List[Operator]]) -> List[GeneSpace]:
+    gs = []
+    highest_n_operands = max(operators_dict.keys())
+    min_allowed_operator_index = 1
+    operators = [x for y in operators_dict.values() for x in y]
+
+    for i_node in range(config.n_nodes):
+
+        # Build the range of allowed operators
+        if i_node <= highest_n_operands:
+            # Operator range is based on the amount of preceding nodes
+            n_operators = len(operators_dict[i_node])
+            min_allowed_operator_index -= n_operators
+            operator_range = GeneRange(range=(min_allowed_operator_index, config.max_constant))
+        else:
+            # Normal restrictions on the whole set of operators
+            operator_range = GeneRange(range=(-len(operators) - n_inputs + 1, config.max_constant))
+
+        # Todo: check this
+        # Ensure DAG by only connecting to previous node indices in loop
+        connection_range = GeneRange() if i_node < n_inputs else GeneRange(range=(0, i_node - 1))
+
+        #
+        # INPUT
+        #
+
+        # The first nodes should be input nodes
+        if i_node <= n_inputs - 1:
+
+            # Index of the corresponding input variable
+            # input_0 at 0
+            # input_1 at 1
+            # etc..
+
+            input_range = GeneRange(values=[-len(operators) - i_node])
+
+            # Operator, which is input variable of index i_node
+            gs.append(OperatorGeneSpace(gene_range=input_range, operators=operators))
+
+            # Connections
+            for _ in range(config.max_node_arity):
+                gs.append(IntegerGeneSpace(connection_range))
+
+
+        #
+        # OPERATORS AND CONSTANTS
+        #
+
+        # Followed by operators
+        else:
+
+            # Ensure that operators are not selected that require more operands than currently available
+
+            # Operator
+            gs.append(OperatorGeneSpace(operator_range, operators))
+
+            # Connections
+            for _ in range(config.max_node_arity):
+                gs.append(IntegerGeneSpace(connection_range))
+
+    #
+    # OUTPUT INDICATORS
+    #
+
+    # Followed by output indicators
+
+    output_range = GeneRange(range=(0, config.n_nodes - 1))
+
+    for _ in range(config.n_outputs):
+        gs.append(IntegerGeneSpace(output_range))
+
+    return gs
+
+
 # Population for Cartesian representation
 class CartesianPopulation(Population):
     def __init__(self,
@@ -341,81 +418,7 @@ class CartesianPopulation(Population):
         # Construct genome space
 
         # Todo: [!] proper genome spaces can be give to PyGad optimizer
-        self.genome_space = []
-        highest_n_operands = max(self.operators_dict.keys())
-        min_allowed_operator_index = 1
-
-        for i_node in range(self.config.n_nodes):
-
-            # Build the range of allowed operators
-            if i_node <= highest_n_operands:
-                # Operator range is based on the amount of preceding nodes
-                n_operators = len(self.operators_dict[i_node])
-                min_allowed_operator_index -= n_operators
-                operator_range = GeneRange(range=(min_allowed_operator_index, self.config.max_constant))
-            else:
-                # Normal restrictions on the whole set of operators
-                operator_range = GeneRange(range=(-len(self.operators) - self.n_inputs + 1, self.config.max_constant))
-
-            # Todo: check this
-            # Ensure DAG by only connecting to previous node indices in loop
-            connection_range = GeneRange() if i_node < self.n_inputs else GeneRange(range=(0, i_node - 1))
-
-            #
-            # INPUT
-            #
-
-            # The first nodes should be input nodes
-            if i_node <= self.n_inputs - 1:
-
-                # Index of the corresponding input variable
-                # input_0 at 0
-                # input_1 at 1
-                # etc..
-
-                input_range = GeneRange(values=[-len(self.operators) - i_node])
-
-                self.genome_space.append([
-
-                    # Operator, which is input variable of index i_node
-                    OperatorGeneSpace(gene_range=input_range, operators=self.operators),
-
-                    # Connections
-                    *[IntegerGeneSpace(connection_range) for _ in range(self.config.max_node_arity)]
-                ])
-
-
-            #
-            # OPERATORS AND CONSTANTS
-            #
-
-            # Followed by operators
-            else:
-
-                # Ensure that operators are not selected that require more operands than currently available
-                self.genome_space.append([
-
-                    # Operator
-                    OperatorGeneSpace(operator_range, self.operators),
-
-                    # Connections
-                    *[IntegerGeneSpace(connection_range) for _ in range(self.config.max_node_arity)]
-
-                    ])
-
-        #
-        # OUTPUT INDICATORS
-        #
-
-        # Followed by output indicators
-
-        output_range = GeneRange(range=(0, self.config.n_nodes - 1))
-
-        self.genome_space.append([
-
-            *[IntegerGeneSpace(output_range) for _ in range(self.config.n_outputs)]
-
-        ])
+        self.genome_space = generate_cartesian_genome_space(self.config, self.n_inputs, self.operators_dict)
 
         # Create population from different gene spaces
         super().__init__(config.n_individuals,
@@ -471,24 +474,9 @@ class CartesianPopulation(Population):
         for i, genome in enumerate(self.individuals):
             self.individuals[i].genes = new_population[i]
 
-    # Todo: check role of input_size
-
-
-# Generate Cartesian gene space
-def generate_cartesian_genome_space(config: CartesianConfig, input_size: int) -> List[GeneSpace]:
-    gs = [
-        OperatorGeneSpace(  # Operator
-            GeneRange(range=(-len(SIMPLE_OPERATORS) - input_size, config.max_constant)),
-            SIMPLE_OPERATORS),
-        BinaryGeneSpace(),  # Binary indicator for output node
-        *[IntegerGeneSpace((0, config.n_nodes)) for _ in range(config.max_node_arity)],  # Receiving connections
-    ]
-    return gs
-
-
 if __name__ == '__main__':
     # Gene space test
-    gs = OperatorGeneSpace((-1, 0), SIMPLE_OPERATORS)
+    gs = OperatorGeneSpace(GeneRange(range=(-1, 0)), SIMPLE_OPERATORS)
     print(gs[-0.4])
     print(gs[-1])
 

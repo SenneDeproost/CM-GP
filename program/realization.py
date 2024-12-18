@@ -3,6 +3,7 @@
 # Executable programs as the realization of the genome
 #
 # 28/11/2024 - Senne Deproost
+from copy import deepcopy
 
 import numpy as np
 from typing import Callable, List, Union, Any, Tuple
@@ -14,7 +15,7 @@ from numpy import ndarray
 from config import CartesianConfig
 from envs.simple_envs import SimpleGoalEnv
 from population import Genome, OperatorGeneSpace, generate_cartesian_genome_space, genes_per_node, EMPTY
-from program import Operator, SIMPLE_OPERATORS, InputVar
+from program import Operator, InputVar, SIMPLE_OPERATORS, SIMPLE_OPERATORS_DICT
 from dataclasses import dataclass, asdict
 
 
@@ -75,7 +76,7 @@ def SumString(x: list[str]) -> str:
 # Todo: List of operators can be removed since it is encapsulated in the genespace instance
 class CartesianProgram(Program):
     def __init__(self, genome: Genome, input_space: gym.Space, operators: List[Operator], config: CartesianConfig):
-        super().__init__(genome, input_space, operators)
+        super().__init__(genome, input_space, deepcopy(operators))
         self.genome = genome
         self.config = config
         self._realization = self._process_nodes()  # Realization nesting of Nodes
@@ -222,14 +223,15 @@ if __name__ == "__main__":
     # Test for 4 nodes of 4 genes
     c = CartesianConfig()
     c.n_nodes = 4
-    gs = generate_cartesian_genome_space(c, input_size)
+    c.n_outputs = 1
+    gs = generate_cartesian_genome_space(c, input_size, SIMPLE_OPERATORS_DICT)
 
-    genome = Genome(n_genes=len(gs) * c.n_nodes, genome_space=gs)
+    genome = Genome(n_genes=len(gs), genome_space=gs)
     print(genome)
 
     # Test valid program
+    gs = generate_cartesian_genome_space(c, input_size, SIMPLE_OPERATORS_DICT)
     genome = Genome(genes=test.SMALL_GENE_1_OUTPUT, genome_space=gs)
-    c.n_nodes = int(test.SMALL_GENE_1_OUTPUT.shape[0] / len(gs))
     prog = CartesianProgram(genome, space, SIMPLE_OPERATORS, c)
     res = prog.evaluate(test.SMALl_INPUT)
     s = prog.to_string()

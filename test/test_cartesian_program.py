@@ -1,9 +1,8 @@
 import test
 from config import CartesianConfig
 from population import Genome, generate_cartesian_genome_space, genes_per_node
-from program import SIMPLE_OPERATORS
+from program import SIMPLE_OPERATORS_DICT, SIMPLE_OPERATORS
 from program.realization import CartesianProgram
-
 
 def test_small_program_1_output():
     space = test.SMALL_OBS_SPACE
@@ -11,7 +10,8 @@ def test_small_program_1_output():
 
     c = CartesianConfig()
     c.n_nodes = int(test.SMALL_GENE_1_OUTPUT.shape[0] / genes_per_node(c))
-    gs = generate_cartesian_genome_space(c, input_size)
+    c.n_outputs = 1
+    gs = generate_cartesian_genome_space(c, 1, SIMPLE_OPERATORS_DICT)
 
     # Program: id(input_0) + 5.0
     # Output: -4.0
@@ -19,9 +19,10 @@ def test_small_program_1_output():
     genome = Genome(genes=test.SMALL_GENE_1_OUTPUT, genome_space=gs)
     prog = CartesianProgram(genome, space, SIMPLE_OPERATORS, c)
 
-    assert prog.evaluate(i) == -4.0
     assert prog.to_string() == 'id(input_0) + 5.0'
     assert prog.to_string(i) == f'id({i[0]}) + 5.0'
+    assert prog.evaluate(i) == -4.0
+
 
 def test_small_program_2_output():
     space = test.SMALL_OBS_SPACE
@@ -29,7 +30,8 @@ def test_small_program_2_output():
 
     c = CartesianConfig()
     c.n_nodes = int(test.SMALL_GENE_2_OUTPUT.shape[0] / genes_per_node(c))
-    gs = generate_cartesian_genome_space(c, input_size)
+    c.n_outputs = 2
+    gs = generate_cartesian_genome_space(c, 1, SIMPLE_OPERATORS_DICT)
 
     # Program: ∑[ (id(input_0) + 5.0) , id(input_0) ]
     # Output: -13.0
@@ -37,9 +39,10 @@ def test_small_program_2_output():
     genome = Genome(genes=test.SMALL_GENE_2_OUTPUT, genome_space=gs)
     prog = CartesianProgram(genome, space, SIMPLE_OPERATORS, c)
 
-    assert prog.evaluate(i) == -13.0
     assert prog.to_string() == '∑[ id(input_0), id(input_0) + 5.0 ]'
     assert prog.to_string(i) == f'∑[ id({i[0]}), id({i[0]}) + 5.0 ]'
+    assert prog.evaluate(i) == -13.0
+
 
 def test_big_program_1_output():
     space = test.SMALL_OBS_SPACE
@@ -47,7 +50,8 @@ def test_big_program_1_output():
 
     c = CartesianConfig()
     c.n_nodes = int(test.BIG_GENE_1_OUTPUT.shape[0] / genes_per_node(c))
-    gs = generate_cartesian_genome_space(c, input_size)
+    c.n_outputs = 1
+    gs = generate_cartesian_genome_space(c, 2, SIMPLE_OPERATORS_DICT)
 
     # Program: (id(input_0) + 5.0) * input_1
     # Output: -396.0
@@ -55,9 +59,10 @@ def test_big_program_1_output():
     genome = Genome(genes=test.BIG_GENE_1_OUTPUT, genome_space=gs)
     prog = CartesianProgram(genome, space, SIMPLE_OPERATORS, c)
 
-    assert prog.evaluate(i) == -396.0
     assert prog.to_string() == '(id(input_0) + 5.0) * input_1'
     assert prog.to_string(i) == f'(id({i[0]}) + 5.0) * {i[1]}'
+    assert prog.evaluate(i) == -396.0
+
 
 def test_big_program_2_output():
     space = test.SMALL_OBS_SPACE
@@ -65,7 +70,8 @@ def test_big_program_2_output():
 
     c = CartesianConfig()
     c.n_nodes = int(test.BIG_GENE_2_OUTPUT.shape[0] / genes_per_node(c))
-    gs = generate_cartesian_genome_space(c, input_size)
+    c.n_outputs = 2
+    gs = generate_cartesian_genome_space(c, 2, SIMPLE_OPERATORS_DICT)
 
     # Program: ∑[ id(input_0) + 5.0, (id(input_0) + 5.0) * input_1 ]
     # Output: -400
@@ -73,6 +79,6 @@ def test_big_program_2_output():
     genome = Genome(genes=test.BIG_GENE_2_OUTPUT, genome_space=gs)
     prog = CartesianProgram(genome, space, SIMPLE_OPERATORS, c)
 
-    assert prog.evaluate(i) == -400.0
     assert prog.to_string() == '∑[ id(input_0) + 5.0, (id(input_0) + 5.0) * input_1 ]'
     assert prog.to_string(i) == f'∑[ id({i[0]}) + 5.0, (id({i[0]}) + 5.0) * {i[1]} ]'
+    assert prog.evaluate(i) == -400.0

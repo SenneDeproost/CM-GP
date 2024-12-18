@@ -65,11 +65,12 @@ SIMPLE_OPERATORS_DICT = {
 
 SIMPLE_OPERATORS = [x for y in SIMPLE_OPERATORS_DICT.values() for x in y]
 
-if __name__ == '__main__':
-    i = SMALl_INPUT
-    for operator in SIMPLE_OPERATORS:
-        print("----------")
-        print(operator)
-        print(operator.print(i))
-        print(operator(i))
-        print("----------")
+#if __name__ == '__main__':
+#    i = SMALl_INPUT
+#    SIMPLE_OPERATORS = [x for y in SIMPLE_OPERATORS_DICT.values() for x in y]
+#    for operator in SIMPLE_OPERATORS:
+#        print("----------")
+#        print(operator)
+#        print(operator.print(i))
+#        print(operator(i))
+#        print("----------")

@@ -11,11 +11,8 @@ import numpy as np
 
 # Check if brackets are needed (Bracket Check)
 def bc(x: str):
-    if isinstance(x, (list, tuple, np.ndarray)):
-        if '(' in x:
-            return f'({x})'
-        else:
-            return x
+    if '(' in x:
+        return f'({x})'
     else:
         return x
 
