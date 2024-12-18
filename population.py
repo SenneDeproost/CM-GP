@@ -464,9 +464,8 @@ class CartesianPopulation(Population):
     # Get range description for PyGad optimizer
     def range_description(self) -> List[dict]:
         res = []
-        for node in self.genome_space:
-            for gen in node:
-                res.append(gen.gene_range.description())
+        for gene in self.genome_space:
+            res.append(gene.gene_range.description())
         return res
 
     # Update all genes of the population

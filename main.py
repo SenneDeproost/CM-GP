@@ -20,7 +20,7 @@ from optimizer import PyGADOptimizer
 from config import ExperimentConfig
 
 import envs
-from program import SIMPLE_OPERATORS
+from program import SIMPLE_OPERATORS_DICT
 
 
 def make_env(env_id, seed, idx, capture_video, run_name):
@@ -98,7 +98,7 @@ def run_synthesis(args: ExperimentConfig):
     # Actor is a learnable program for each action in the action space
     program_optimizers = [PyGADOptimizer(
         args.training.optimizer,
-        SIMPLE_OPERATORS,
+        SIMPLE_OPERATORS_DICT,
         env.observation_space,
     ) for i in range(env.action_space.shape[0])]
 
