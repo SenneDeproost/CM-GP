@@ -200,7 +200,7 @@ if __name__ == "__main__":
                 cur_program_actions = np.copy(orig_program_actions)
                 print('BEFORE ACTIONS', orig_program_actions[0])
 
-                for i in range(500):
+                for i in range(5):
                     program_actions = torch.tensor(cur_program_actions, requires_grad=True)
 
                     program_objective_1 = qf1(data.observations, program_actions).mean()
@@ -211,7 +211,7 @@ if __name__ == "__main__":
                     with torch.no_grad():
                         cur_program_actions += program_actions.grad.numpy()
 
-                    if np.abs(cur_program_actions - orig_program_actions).mean() > 0.5:
+                    if np.abs(cur_program_actions - orig_program_actions).mean() > 0.1:
                         break
 
                 # Fit the program optimizers on all the action dimensions
