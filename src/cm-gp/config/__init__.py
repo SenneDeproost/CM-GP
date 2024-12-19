@@ -90,7 +90,7 @@ class OptimizerConfig:
     # Type of parent selection
     parent_selection: str = field(default='sss')
     # Batch size of states to be used by the optimizer Todo: Check if two separate batch sizes doesn't cause problems
-    batch_size: int = field(default=256)
+    batch_size: int = field(default=2560)
 
 
 
@@ -107,7 +107,7 @@ class AgentConfig:
     # Target smoothing coefficient
     tau: float = field(default=0.005)
     # Batch size of sample from replay memory
-    batch_size: int = field(default=256)
+    batch_size: int = field(default=2560)
     # Scale of the policy noise
     policy_noise: float = field(default=0.1)
     # Noise clip of the Target Policy Smoothing Regularization
@@ -129,7 +129,7 @@ class TrainingConfig:
     # Timestep to start learning
     start_learning: int = field(default=100)
     # Frequency of training the policy
-    policy_update: int = field(default=256)
+    policy_update: int = field(default=2560)
 
 
 @dataclass

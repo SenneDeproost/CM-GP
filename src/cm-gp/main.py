@@ -11,8 +11,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+ import tyro
 
-from stable_baselines3.common.buffers import ReplayBuffer
+ from stable_baselines3.common.buffers import ReplayBuffer
 from torch.utils.tensorboard import SummaryWriter
 from torch.autograd import grad
 
@@ -62,8 +63,9 @@ def get_state_actions(program_optimizers, obs, env, args):
 
     return np.array(program_actions)
 
-@pyrallis.wrap()
-def run_synthesis(args: ExperimentConfig):
+if __name__ == "__main__":
+    args = tyro.cli(ExperimentConfig)
+
     run_name = f"{args.env_id}__{args.log.run_name}__{args.seed}__{int(time.time())}"
     if args.log.wandb.track:
         import wandb
@@ -240,7 +242,3 @@ def run_synthesis(args: ExperimentConfig):
 
     env.close()
     writer.close()
-
-
-if __name__ == "__main__":
-    run_synthesis()
