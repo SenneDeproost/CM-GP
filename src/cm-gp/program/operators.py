@@ -8,6 +8,12 @@ from typing import List, Callable, Union
 import math
 import numpy as np
 
+# Sign check
+def sign(x: float) -> int:
+    if x < 0:
+        return -1
+    else:
+        return 1
 
 # Check if brackets are needed (Bracket Check)
 def bc(x: str):
@@ -108,7 +114,11 @@ class Div(Operator):
         super().__init__(self.name, self.n_operands)
 
     def __call__(self, x: np.ndarray[float]) -> float:
-        return 999 if -0.01 > x[1] > 0.01 else x[0] / x[1]
+        if -0.1 <= x[1] <= 0.1:
+            s = sign(x[0])*sign(x[1])
+            return s*999
+        else:
+            return x[0] / x[1]
 
     @staticmethod
     def print(x: np.ndarray[float]) -> str:

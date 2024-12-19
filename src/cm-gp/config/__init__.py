@@ -59,7 +59,7 @@ class CartesianConfig:
     # Number maximum arity over the set of operators
     max_node_arity: int = field(default=4)
     # Highest number for constant
-    max_constant: float = field(default=20)
+    max_constant: float = field(default=1.0)
     # Amount of outputs
     n_outputs: int = field(default=1)
 
@@ -74,17 +74,17 @@ class OptimizerConfig:
     # Number of individuals in population
     n_individuals: int = field(default=100)
     # Number of generations
-    n_generations: int = field(default=5)
+    n_generations: int = field(default=3)
     # Number of parents mating
     n_parents_mating: int = field(default=90)
     # Probability of gene mutation
     gene_mutation_prob: float = field(default=0.05)
     # How many elites to keep
-    elitism: int = field(default=2)
+    elitism: int = field(default=10)
     # Type of mutation
     mutation: str = field(default='random')
     # Range of mutation values
-    mutation_val: tuple[float, float] = field(default=(-99.0, 99.0))
+    mutation_val: tuple[float, float] = field(default=(-9.0, 9.0))
     # Type of crossover
     crossover: str = field(default='single_point')
     # Type of parent selection
@@ -124,12 +124,12 @@ class TrainingConfig:
     agent: AgentConfig = field(default_factory=AgentConfig)
 
     # Amount of time steps to learn
-    timesteps: int = field(default=10_000)
+    timesteps: int = field(default=100_000)
 
     # Timestep to start learning
     start_learning: int = field(default=100)
     # Frequency of training the policy
-    policy_update: int = field(default=128)
+    policy_update: int = field(default=256)
 
 
 @dataclass
