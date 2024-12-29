@@ -3,7 +3,7 @@ import gymnasium as gym
 import numpy as np
 
 SMALL_OBS_SPACE = gym.spaces.Box(low=-20, high=20, shape=(4,))
-SMALl_INPUT = np.array([-9, 99, 999, 9999])
+SMALL_INPUT = np.array([-9, 99, 999, 9999])
 
 TINY_OBS_SPACE = gym.spaces.Box(low=-20, high=20, shape=(2,))
 TINY_INPUT = np.array([-9, 99])

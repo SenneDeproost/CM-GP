@@ -55,11 +55,11 @@ class CartesianConfig:
     # Name of representation
     representation: str = 'Cartesian'
     # Number of nodes in Cartesian graph
-    n_nodes: int = field(default=10)
+    n_nodes: int = field(default=2)
     # Number maximum arity over the set of operators
     max_node_arity: int = field(default=4)
     # Highest number for constant
-    max_constant: float = field(default=1.0)
+    max_constant: float = field(default=5)
     # Amount of outputs
     n_outputs: int = field(default=1)
 
@@ -76,21 +76,24 @@ class OptimizerConfig:
     # Number of generations
     n_generations: int = field(default=3)
     # Number of parents mating
-    n_parents_mating: int = field(default=90)
+    n_parents_mating: int = field(default=80)
     # Probability of gene mutation
-    gene_mutation_prob: float = field(default=0.05)
+    gene_mutation_prob: float = field(default=0.1)
     # How many elites to keep
-    elitism: int = field(default=10)
+    elitism: int = field(default=50) # High enough!
     # Type of mutation
     mutation: str = field(default='random')
     # Range of mutation values
-    mutation_val: tuple[float, float] = field(default=(-9.0, 9.0))
+    mutation_val: tuple[float, float] = field(default=(-20.0, 20.0))
     # Type of crossover
     crossover: str = field(default='single_point')
     # Type of parent selection
-    parent_selection: str = field(default='sss')
+    parent_selection: str = field(default='tournament')
+
+    # Reset the best program
+    #best_reset: int = field(default=1)
     # Batch size of states to be used by the optimizer Todo: Check if two separate batch sizes doesn't cause problems
-    batch_size: int = field(default=2560)
+    #batch_size: int = field(default=256)
 
 
 
@@ -107,12 +110,33 @@ class AgentConfig:
     # Target smoothing coefficient
     tau: float = field(default=0.005)
     # Batch size of sample from replay memory
-    batch_size: int = field(default=2560)
+    batch_size: int = field(default=256)
     # Scale of the policy noise
     policy_noise: float = field(default=0.1)
     # Noise clip of the Target Policy Smoothing Regularization
     noise_clip: float = field(default=0.5)
 
+@ dataclass
+class CriticConfig:
+    """Config for critic"""
+
+    # Learning rate
+    learning_rate: float = field(default=3e-4)
+    # Noise
+    noise_clip: float = field(default=0.5)
+    # Policy noise
+    policy_noise: float = field(default=0.1)
+    # Target smoothing coefficient
+    tau: float = field(default=0.005)
+    # Discount factor
+    gamma: float = field(default=0.99)
+
+    # Amount of update iterations
+    gradient_updates: int = field(default=100)
+    # Gradient update threshold
+    update_threshold: float = field(default=1)
+    # Rate of update the gradient is applied
+    update_rate: float = field(default=1)
 
 @dataclass
 class TrainingConfig:
@@ -122,14 +146,16 @@ class TrainingConfig:
     optimizer: OptimizerConfig = field(default_factory=OptimizerConfig)
     # Agent
     agent: AgentConfig = field(default_factory=AgentConfig)
+    # Critic
+    critic: CriticConfig = field(default=CriticConfig)
 
     # Amount of time steps to learn
-    timesteps: int = field(default=100_000)
+    timesteps: int = field(default=500_000)
 
     # Timestep to start learning
     start_learning: int = field(default=100)
     # Frequency of training the policy
-    policy_update: int = field(default=2560)
+    policy_update: int = field(default=32) # Not too high!
 
 
 @dataclass
@@ -150,7 +176,7 @@ class ExperimentConfig:
     cuda: bool = field(default=False)
 
     # Environment id
-    env_id: str = field(default='SimpleGoal-v0')
+    env_id: str = field(default='SimpleActionOnly-v0')
 
 
 if __name__ == "__main__":

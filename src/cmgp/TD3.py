@@ -13,6 +13,8 @@ import torch.optim as optim
 import tyro
 from stable_baselines3.common.buffers import ReplayBuffer
 from torch.utils.tensorboard import SummaryWriter
+from critic import Critic
+from config import CriticConfig
 
 import envs
 
@@ -25,9 +27,9 @@ class Args:
     """seed of the experiment"""
     torch_deterministic: bool = True
     """if toggled, `torch.backends.cudnn.deterministic=False`"""
-    cuda: bool = True
+    cuda: bool = False
     """if toggled, cuda will be enabled by default"""
-    track: bool = True
+    track: bool = False
     """if toggled, this experiment will be tracked with Weights and Biases"""
     wandb_project_name: str = "cleanRL"
     """the wandb's project name"""
@@ -120,6 +122,7 @@ class Actor(nn.Module):
         return x * self.action_scale + self.action_bias
 
 
+
 if __name__ == "__main__":
     import stable_baselines3 as sb3
 
@@ -173,6 +176,9 @@ poetry run pip install "stable_baselines3==2.0.0a1"
     qf2_target.load_state_dict(qf2.state_dict())
     q_optimizer = optim.Adam(list(qf1.parameters()) + list(qf2.parameters()), lr=args.learning_rate)
     actor_optimizer = optim.Adam(list(actor.parameters()), lr=args.learning_rate)
+
+    critic_config = CriticConfig()
+    critic = Critic(envs, critic_config)
 
     envs.single_observation_space.dtype = np.float32
     rb = ReplayBuffer(

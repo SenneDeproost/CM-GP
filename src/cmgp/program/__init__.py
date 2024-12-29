@@ -8,7 +8,7 @@ from typing import List, Callable, Union
 import math
 import numpy as np
 from .operators import *
-from test import SMALl_INPUT
+from test import SMALL_INPUT
 
 
 # Abstraction for input variable ot the program

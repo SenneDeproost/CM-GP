@@ -20,7 +20,8 @@ from program.realization import Program, CartesianProgram
 
 
 def print_fitness(ga, fitnesses):
-    print('F', fitnesses.mean(), file=sys.stderr)
+    print(f'F_best: {fitnesses.max()}, F_worst: {fitnesses.min()}  F_mean: {fitnesses.mean()}', file=sys.stderr)
+
 
 # Todo: Generic class, not fixed to CGP
 class PyGADOptimizer:
@@ -71,15 +72,17 @@ class PyGADOptimizer:
         c = self.config
         instance = pygad.GA(
             # General
+            suppress_warnings=True,
             fitness_func=self.fitness_function,
             initial_population=self.raw_population,
             num_generations=c.n_generations,
-            keep_parents=c.elitism,
+            keep_elitism=c.elitism,
             gene_space=self.range,
-            save_solutions=True,
+            #gene_space={'low': 0, 'high': 10},
+            #save_solutions=True,
             save_best_solutions=True,
             on_fitness=print_fitness,
-            parallel_processing=["process", None],  # Utilize all available resources
+            parallel_processing=16,  # Utilize all available resources
             # Crossover
             mutation_probability=c.gene_mutation_prob,
             mutation_type=c.mutation,
@@ -102,15 +105,25 @@ class PyGADOptimizer:
         batch_size = self._critic_states.shape[0]
 
         for i in range(batch_size):
-
             # Calculate MSE between proposed and improved action
             action = prog(self._critic_states[i])
             desired_action = self._critic_actions[i]
 
-            fitness += (action - desired_action) ** 2
+            distance = abs(action - desired_action)
+            #distance = abs(action - 5)
+            fitness += distance
+            #fitness += np.sin(action * 3.1516).sum()
 
         # Avg
-        fitness = -(fitness / batch_size)
+        fitness = - fitness
+        #fitness = (fitness / batch_size)
+
+        # Set best solution index if needed
+        #if fitness > self.best_fitness:
+        #    print(f'--- New best program {prog} with fitness: {fitness} ---')
+        #    self.best_fitness = fitness
+        #    self.best_solution_index = solution_index
+        #    self.best_program = prog
 
         return fitness
 
@@ -130,7 +143,10 @@ class PyGADOptimizer:
         self.raw_population = self._optim.population
         self.population.update(self._optim.population)
 
-        # Reset best program
+        # Set best results
+        best_sol, best_fit, best_idx = self._optim.best_solution()
+        self.best_solution_index = best_idx
+        self.best_fitness = best_fit
         self.best_program = self.population.realize(self.best_solution_index)
 
 

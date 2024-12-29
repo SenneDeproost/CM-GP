@@ -170,6 +170,8 @@ def run_synthesis(args: Args):
     qf2_target.load_state_dict(qf2.state_dict())
     q_optimizer = optim.Adam(list(qf1.parameters()) + list(qf2.parameters()), lr=args.learning_rate)
 
+
+
     env.observation_space.dtype = np.float32
     rb = ReplayBuffer(
         args.buffer_size,

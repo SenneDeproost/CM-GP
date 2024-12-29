@@ -1,3 +1,5 @@
+import sys
+sys.path.insert(0, "../")
 import test
 from config import CartesianConfig
 from population import Genome, generate_cartesian_genome_space, genes_per_node
