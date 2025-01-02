@@ -35,3 +35,9 @@ register(
     entry_point='envs.simple_envs:SimpleGoalEnvSpeed',
     kwargs={}
 )
+
+register(
+    id='TestGoal-v0',
+    entry_point='envs.simple_envs:TestGoalEnv',
+    kwargs={}
+)

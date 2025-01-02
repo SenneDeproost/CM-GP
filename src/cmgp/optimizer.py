@@ -76,15 +76,16 @@ class PyGADOptimizer:
             fitness_func=self.fitness_function,
             initial_population=self.raw_population,
             num_generations=c.n_generations,
-            keep_elitism=c.elitism,
+            #keep_elitism=c.elitism,
             gene_space=self.range,
             #gene_space={'low': 0, 'high': 10},
-            #save_solutions=True,
-            save_best_solutions=True,
+            save_solutions=False,
+            save_best_solutions=False,
             on_fitness=print_fitness,
-            parallel_processing=16,  # Utilize all available resources
+            parallel_processing=4,  # Utilize all available resources
             # Crossover
             mutation_probability=c.gene_mutation_prob,
+            #mutation_percent_genes=c.gene_mutation_percent,
             mutation_type=c.mutation,
             random_mutation_min_val=c.mutation_val[0],
             random_mutation_max_val=c.mutation_val[1],
@@ -105,14 +106,20 @@ class PyGADOptimizer:
         batch_size = self._critic_states.shape[0]
 
         for i in range(batch_size):
+
+            state = self._critic_states[i]
+
             # Calculate MSE between proposed and improved action
-            action = prog(self._critic_states[i])
+            action = prog(state)
             desired_action = self._critic_actions[i]
 
-            distance = abs(action - desired_action)
-            #distance = abs(action - 5)
-            fitness += distance
-            #fitness += np.sin(action * 3.1516).sum()
+            distance = (desired_action - action)**2
+
+            # Checking bug for 0 producing programs
+            if action == 0:
+                fitness += 99
+            else:
+                fitness += distance
 
         # Avg
         fitness = - fitness
@@ -133,10 +140,15 @@ class PyGADOptimizer:
         self._critic_states = critic_states
         self._critic_actions = critic_actions
 
+        # ! Limit the amount of critic state actions
+        #self._critic_states = critic_states[:5]
+        #self._critic_actions = critic_actions[:5]
+
         # Reset initial population inside optimizer
         self._optim.initial_population = self.raw_population  #self.population.raw_genes()
 
         # Iterate with optimizer
+        self._optim = self._init_optimizer()
         self._optim.run()
 
         # Update population
@@ -145,6 +157,7 @@ class PyGADOptimizer:
 
         # Set best results
         best_sol, best_fit, best_idx = self._optim.best_solution()
+        f = self._optim.cal_pop_fitness()
         self.best_solution_index = best_idx
         self.best_fitness = best_fit
         self.best_program = self.population.realize(self.best_solution_index)

@@ -78,7 +78,7 @@ if __name__ == "__main__":
     config.n_individuals = 10
     config.n_parents_mating = 9
     config.program.n_outputs = 2
-    config.elitism = 1
+    config.elitism = 0
     config.program.n_nodes = 6
     config.program.n_inputs = 2
     config.n_generations = 20

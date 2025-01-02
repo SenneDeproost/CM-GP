@@ -119,8 +119,8 @@ class SimpleGoalEnv(gym.Env):
         self.state = np.zeros((2,), dtype=np.float32)
 
     def reset(self, **kwargs):
-        self.state[0] = 0.3 #random.random()
-        self.state[1] = 0.3 #random.random()
+        self.state[0] = 0.3  #random.random()
+        self.state[1] = 0.3  #random.random()
         self._timestep = 0
 
         return self.state, {}
@@ -159,6 +159,36 @@ class SimpleGoalEnv(gym.Env):
             done = True
 
         return self.state, reward, done or (self._timestep > 50), False, {}
+
+
+class TestGoalEnv(gym.Env):
+    def __init__(self):
+        super().__init__()
+
+        self.observation_space = gym.spaces.Box(
+            low=np.zeros((1,)),
+            high=np.ones((1,))
+        )
+        self.action_space = gym.spaces.Box(
+            low=-np.ones((1,)),
+            high=np.ones((1,))
+        )
+        self.state = np.zeros((1,), dtype=np.float32)
+
+    def reset(self, **kwargs):
+        self.state[0] = random.random()
+        #self.state[1] = 0.3  #random.random()
+        self._timestep = 0
+
+        return self.state, {}
+
+    def step(self, a):
+        objective = (0)
+        s = self.state + a
+
+        reward = -abs(objective - s)
+
+        return np.zeros((1,)), reward, True, False, {}
 
 
 class SimpleGoalEnvSpeed(gym.Env):
@@ -207,8 +237,8 @@ class SimpleGoalEnvSpeed(gym.Env):
         old_d = distance_to_goal(self.state)
 
         # Add speed to position
-        self.state[0] = np.clip(self.state[0] + 0.1*self.state[2], 0.0, 1.0)
-        self.state[1] = np.clip(self.state[1] + 0.1*self.state[3], 0.0, 1.0)
+        self.state[0] = np.clip(self.state[0] + 0.1 * self.state[2], 0.0, 1.0)
+        self.state[1] = np.clip(self.state[1] + 0.1 * self.state[3], 0.0, 1.0)
 
         new_d = distance_to_goal(self.state)
 

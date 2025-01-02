@@ -138,8 +138,8 @@ if __name__ == "__main__":
         # TRY NOT TO MODIFY: execute the game and log data.
         next_obs, reward, termination, truncation, info = env.step(action)
 
-        print(f'Action: {action}')
-        print(f'Reward: {reward}')
+        #print(f'Action: {action}')
+        #print(f'Reward: {reward}')
 
         # TRY NOT TO MODIFY: record rewards for plotting purposes
         if 'episode' in info:
@@ -200,6 +200,7 @@ if __name__ == "__main__":
 
                     optimizer.fit(states, actions[:, action_index])
                     print(f"a[{action_index}] = {program_optimizers[action_index].best_program}")
+                    program_optimizers[action_index] = optimizer
 
                 # update the target network
                 critic.update_target()
