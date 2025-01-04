@@ -119,8 +119,8 @@ class SimpleGoalEnv(gym.Env):
         self.state = np.zeros((2,), dtype=np.float32)
 
     def reset(self, **kwargs):
-        self.state[0] = 0.3  #random.random()
-        self.state[1] = 0.3  #random.random()
+        self.state[0] = random.random()
+        self.state[1] = random.random()
         self._timestep = 0
 
         return self.state, {}
@@ -176,7 +176,7 @@ class TestGoalEnv(gym.Env):
         self.state = np.zeros((1,), dtype=np.float32)
 
     def reset(self, **kwargs):
-        self.state[0] = 1
+        self.state[0] = random.random()
         #self.state[1] = 0.3  #random.random()
         self._timestep = 0
 
@@ -189,7 +189,9 @@ class TestGoalEnv(gym.Env):
         reward = -abs(objective - s)
 
         if 0.4 <= s[0] <= 0.5:
-            reward = -10
+            reward = -1
+        if s[0] > 1:
+            reward = -1
 
         return np.zeros((1,)), reward, True, False, {}
 

@@ -55,11 +55,11 @@ class CartesianConfig:
     # Name of representation
     representation: str = 'Cartesian'
     # Number of nodes in Cartesian graph
-    n_nodes: int = field(default=5)
+    n_nodes: int = field(default=10)
     # Number maximum arity over the set of operators
     max_node_arity: int = field(default=4)
     # Highest number for constant
-    max_constant: float = field(default=10)
+    max_constant: float = field(default=20)
     # Amount of outputs
     n_outputs: int = field(default=1)
 
@@ -72,13 +72,13 @@ class OptimizerConfig:
     # Configuration for type of program
     program: Union[CartesianConfig] = field(default=CartesianConfig)
     # Number of individuals in population
-    n_individuals: int = field(default=20)
+    n_individuals: int = field(default=100)
     # Number of generations
-    n_generations: int = field(default=3)
+    n_generations: int = field(default=1)
     # Number of parents mating
-    n_parents_mating: int = field(default=4)
+    n_parents_mating: int = field(default=50)
     # Probability of gene mutation
-    gene_mutation_prob: float = field(default=0.99) # 0.1
+    gene_mutation_prob: float = field(default=0.05) # 0.1
     # Percentage of genes to mutate (no effect if gene_mutation_prob is given)
     #gene_mutation_percent: float = field(default=10.0)
     # How many elites to keep
@@ -114,7 +114,7 @@ class AgentConfig:
     # Batch size of sample from replay memory for critic
     critic_batch_size: int = field(default=256) # 256
     # Batch size of sample from replay memory for actor
-    actor_batch_size: int = field(default=256)  # 256
+    actor_batch_size: int = field(default=10)  # 256
     # Scale of the policy noise
     policy_noise: float = field(default=0.1) # 0.1
     # Noise clip of the Target Policy Smoothing Regularization
@@ -136,7 +136,7 @@ class CriticConfig:
     gamma: float = field(default=0.99)
 
     # Amount of update iterations
-    gradient_updates: int = field(default=100) # 100
+    gradient_updates: int = field(default=1000) # 100
     # Gradient update threshold
     update_threshold: float = field(default=1)
     # Rate of update the gradient is applied
@@ -159,7 +159,7 @@ class TrainingConfig:
     # Timestep to start learning
     start_learning: int = field(default=10)
     # Frequency of training the policy
-    policy_update: int = field(default=64) #32 # Not too high!
+    policy_update: int = field(default=8) #32 # Not too high!
 
 
 @dataclass
@@ -180,7 +180,7 @@ class ExperimentConfig:
     cuda: bool = field(default=False)
 
     # Environment id
-    env_id: str = field(default='TestGoal-v0')
+    env_id: str = field(default='SimpleGoal-v0')
 
 
 if __name__ == "__main__":

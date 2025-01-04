@@ -146,7 +146,7 @@ class CartesianProgram(Program):
                 for connection in node.connections[:function.n_operands]:
                     connected_node = nodes['all'][connection]
                     node.connected_nodes.append(connected_node)
-                    #function.operands.append(connected_node)            # This bug ruined my Christmas vacation
+                    #function.operands.append(connected_node)  # This bug ruined my Christmas vacation
 
             # All other cases
             else:
