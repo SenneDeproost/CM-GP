@@ -176,7 +176,7 @@ class TestGoalEnv(gym.Env):
         self.state = np.zeros((1,), dtype=np.float32)
 
     def reset(self, **kwargs):
-        self.state[0] = random.random()
+        self.state[0] = 1
         #self.state[1] = 0.3  #random.random()
         self._timestep = 0
 
@@ -187,6 +187,9 @@ class TestGoalEnv(gym.Env):
         s = self.state + a
 
         reward = -abs(objective - s)
+
+        if 0.4 <= s[0] <= 0.5:
+            reward = -10
 
         return np.zeros((1,)), reward, True, False, {}
 

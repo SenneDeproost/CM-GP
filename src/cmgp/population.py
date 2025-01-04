@@ -450,7 +450,7 @@ class CartesianPopulation(Population):
             genome=individual,
             input_space=self.state_space,
             operators=self.operators,
-            config=self.config,
+            config=self.config
         )
         return realization
 
@@ -458,7 +458,7 @@ class CartesianPopulation(Population):
     def realize_all(self):
         res = []
         for i, individual in enumerate(self.individuals):
-            self.realize(i)
+            res.append(self.realize(i))
         return res
 
     # Get range description for PyGad optimizer
@@ -472,6 +472,23 @@ class CartesianPopulation(Population):
     def update(self, new_population: np.ndarray[float]) -> None:
         for i, genome in enumerate(self.individuals):
             self.individuals[i].genes = new_population[i]
+
+    # Generate random program from population
+    def random_program(self):
+        from program.realization import CartesianProgram
+
+        genome = Genome(n_genes=self.n_genes, genome_space=self.genome_space)
+
+        from program.realization import CartesianProgram
+
+        program = CartesianProgram(
+            genome=genome,
+            input_space=self.state_space,
+            operators=self.operators,
+            config=self.config
+        )
+
+        return program
 
 if __name__ == '__main__':
     # Gene space test

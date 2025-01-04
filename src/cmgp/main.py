@@ -160,7 +160,7 @@ if __name__ == "__main__":
 
         # ALGO LOGIC: training.
         if global_step > args.training.start_learning:
-            data = rb.sample(args.training.agent.batch_size)
+            data = rb.sample(args.training.agent.critic_batch_size)
             with torch.no_grad():
                 clipped_noise = (torch.randn_like(
                     data.actions, device=device) * args.training.agent.policy_noise).clamp(
@@ -178,6 +178,9 @@ if __name__ == "__main__":
 
             # Optimize the program
             if global_step % args.training.policy_update == 0:
+
+                # New sampling
+                data = rb.sample(args.training.agent.actor_batch_size)
 
                 orig_program_actions = get_state_actions(program_optimizers,
                                                          data.observations.detach().numpy(), env, args)
