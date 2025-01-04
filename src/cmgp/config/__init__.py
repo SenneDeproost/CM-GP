@@ -55,7 +55,7 @@ class CartesianConfig:
     # Name of representation
     representation: str = 'Cartesian'
     # Number of nodes in Cartesian graph
-    n_nodes: int = field(default=3)
+    n_nodes: int = field(default=5)
     # Number maximum arity over the set of operators
     max_node_arity: int = field(default=4)
     # Highest number for constant
@@ -114,7 +114,7 @@ class AgentConfig:
     # Batch size of sample from replay memory for critic
     critic_batch_size: int = field(default=256) # 256
     # Batch size of sample from replay memory for actor
-    actor_batch_size: int = field(default=124)  # 256
+    actor_batch_size: int = field(default=1)  # 256
     # Scale of the policy noise
     policy_noise: float = field(default=0.1) # 0.1
     # Noise clip of the Target Policy Smoothing Regularization

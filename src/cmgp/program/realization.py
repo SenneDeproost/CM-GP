@@ -112,7 +112,6 @@ class CartesianProgram(Program):
                                                     n_index + 1,
                                                     n_index + 1 + self.config.max_node_arity)
             operator = self.genome.express_gene(f_index)  # Gene space has list of operators that can be realized
-
             # Fist node cannot have any connections
             connections = [int(self.genome.express_gene(j)) for j in range(start_c_index, stop_c_index)]
             # Filter out all empty connections
@@ -147,7 +146,7 @@ class CartesianProgram(Program):
                 for connection in node.connections[:function.n_operands]:
                     connected_node = nodes['all'][connection]
                     node.connected_nodes.append(connected_node)
-                    function.operands.append(connected_node)
+                    #function.operands.append(connected_node)            # This bug ruined my Christmas vacation
 
             # All other cases
             else:
@@ -166,8 +165,9 @@ class CartesianProgram(Program):
         # Operator
         def on_operator(node: Node, input: Union[None, ndarray[float]]) -> Operator:
             operands = []
-            for operand in node.function.operands[:node.function.n_operands]:  # Todo: fix slice
+            for operand in node.connected_nodes:  # Todo: fix slice
                 operands.append(operand.traverse(input, on_operator, on_inputvar, on_float))
+
             return node.function(operands)
 
         # Input variable
@@ -194,7 +194,7 @@ class CartesianProgram(Program):
         # Operator
         def on_operator(node: Node, input: Union[None, ndarray[float]]) -> str:
             operands = []
-            for operand in node.function.operands[:node.function.n_operands]:  # Todo: fix slice
+            for operand in node.connected_nodes:
                 operands.append(operand.traverse(input, on_operator, on_inputvar, on_float))
             return node.function.print(operands)
 

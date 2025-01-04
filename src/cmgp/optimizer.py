@@ -191,26 +191,6 @@ class PyGADOptimizer:
         self.reset_solutions()
         self._optim.run()
 
-        # Update population
-        r = []
-        for i in range(100):
-            print()
-            print(i)
-            prog = self.population.random_program()
-            r.append(prog)
-            print(prog)
-            nodes = prog._realization['all']
-            for node in nodes:
-                print(node)
-            print()
-
-
-        print()
-        res = self.population.realize_all()
-        for r in res:
-            print(r)
-        print()
-
         self.raw_population = self._optim.population
         self.population.update(self._optim.population)
 

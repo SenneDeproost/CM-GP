@@ -17,7 +17,7 @@ def test_small_program_1_output():
 
     # Program: id(input_0) + 5.0
     # Output: -4.0
-    i = test.SMALl_INPUT
+    i = test.SMALL_INPUT
     genome = Genome(genes=test.SMALL_GENE_1_OUTPUT, genome_space=gs)
     prog = CartesianProgram(genome, space, SIMPLE_OPERATORS, c)
 
@@ -37,7 +37,7 @@ def test_small_program_2_output():
 
     # Program: ∑[ (id(input_0) + 5.0) , id(input_0) ]
     # Output: -13.0
-    i = test.SMALl_INPUT
+    i = test.SMALL_INPUT
     genome = Genome(genes=test.SMALL_GENE_2_OUTPUT, genome_space=gs)
     prog = CartesianProgram(genome, space, SIMPLE_OPERATORS, c)
 
@@ -57,7 +57,7 @@ def test_big_program_1_output():
 
     # Program: (id(input_0) + 5.0) * input_1
     # Output: -396.0
-    i = test.SMALl_INPUT
+    i = test.SMALL_INPUT
     genome = Genome(genes=test.BIG_GENE_1_OUTPUT, genome_space=gs)
     prog = CartesianProgram(genome, space, SIMPLE_OPERATORS, c)
 
@@ -77,7 +77,7 @@ def test_big_program_2_output():
 
     # Program: ∑[ id(input_0) + 5.0, (id(input_0) + 5.0) * input_1 ]
     # Output: -400
-    i = test.SMALl_INPUT
+    i = test.SMALL_INPUT
     genome = Genome(genes=test.BIG_GENE_2_OUTPUT, genome_space=gs)
     prog = CartesianProgram(genome, space, SIMPLE_OPERATORS, c)
 

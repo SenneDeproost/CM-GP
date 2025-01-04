@@ -246,7 +246,8 @@ class Genome:
 
     # Accessor to gene in genome, returning value from corresponding gene space
     def express_gene(self, index: int) -> Union[float, Operator]:
-        gene_space = self._get_gene_space(index)  # Circular
+        #gene_space = self._get_gene_space(index)  # Circular
+        gene_space = self.genome_space[index]
         gene = self.genes[index]
         return gene_space[gene]
 

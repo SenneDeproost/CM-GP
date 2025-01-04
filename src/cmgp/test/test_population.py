@@ -33,7 +33,7 @@ def test_random_program_from_population():
     c.program.n_outputs = 1
     c.n_individuals = 100
 
-    i = test.SMALl_INPUT
+    i = test.SMALL_INPUT
     pop = CartesianPopulation(c, SIMPLE_OPERATORS_DICT, space)
 
     # Realize programs
@@ -52,7 +52,7 @@ def test_random_program_from_population():
     c.program.n_outputs = 2
     c.n_individuals = 100
 
-    i = test.SMALl_INPUT
+    i = test.SMALL_INPUT
     pop = CartesianPopulation(c, SIMPLE_OPERATORS_DICT, space)
 
     # Realize programs
