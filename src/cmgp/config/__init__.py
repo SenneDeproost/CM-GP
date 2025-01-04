@@ -74,7 +74,7 @@ class OptimizerConfig:
     # Number of individuals in population
     n_individuals: int = field(default=20)
     # Number of generations
-    n_generations: int = field(default=1)
+    n_generations: int = field(default=3)
     # Number of parents mating
     n_parents_mating: int = field(default=4)
     # Probability of gene mutation
@@ -114,7 +114,7 @@ class AgentConfig:
     # Batch size of sample from replay memory for critic
     critic_batch_size: int = field(default=256) # 256
     # Batch size of sample from replay memory for actor
-    actor_batch_size: int = field(default=1)  # 256
+    actor_batch_size: int = field(default=256)  # 256
     # Scale of the policy noise
     policy_noise: float = field(default=0.1) # 0.1
     # Noise clip of the Target Policy Smoothing Regularization
