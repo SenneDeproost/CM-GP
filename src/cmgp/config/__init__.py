@@ -136,7 +136,7 @@ class CriticConfig:
     gamma: float = field(default=0.99)
 
     # Amount of update iterations
-    gradient_updates: int = field(default=1000) # 100
+    gradient_updates: int = field(default=100) # 100
     # Gradient update threshold
     update_threshold: float = field(default=1)
     # Rate of update the gradient is applied
@@ -180,7 +180,7 @@ class ExperimentConfig:
     cuda: bool = field(default=False)
 
     # Environment id
-    env_id: str = field(default='SimpleGoal-v0')
+    env_id: str = field(default='InvertedPendulum-v4')
 
 
 if __name__ == "__main__":
