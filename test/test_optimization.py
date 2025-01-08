@@ -1,6 +1,6 @@
 import sys
 
-sys.path.insert(0, "../")
+#sys.path.insert(0, "../")
 from typing import List
 
 import gym
@@ -10,10 +10,12 @@ from config import OptimizerConfig
 from program.operators import Operator
 from population import generate_cartesian_genome_space, Genome
 from program.realization import CartesianProgram
-from program import SIMPLE_OPERATORS
+from program import SIMPLE_OPERATORS, SIMPLE_OPERATORS_DICT
+import test
+import pytest
 
 
-class TestPyGADOptimizer(PyGADOptimizer):
+class PyGADOptimizer(PyGADOptimizer):
 
     def __init__(self, config: OptimizerConfig,
                  operators_dict: dict[int, List[Operator]],
@@ -23,7 +25,7 @@ class TestPyGADOptimizer(PyGADOptimizer):
 
         gs = generate_cartesian_genome_space(self.config.program, 2, SIMPLE_OPERATORS_DICT)
         genome = Genome(genes=test.BIG_GENE_2_OUTPUT, genome_space=gs)
-        self.ground = CartesianProgram(genome, space, SIMPLE_OPERATORS, self.config.program)
+        self.ground = CartesianProgram(genome, state_space, SIMPLE_OPERATORS, self.config.program)
         print('done')
 
 
@@ -70,7 +72,7 @@ class TestPyGADOptimizer(PyGADOptimizer):
 
 
 
-if __name__ == "__main__":
+def test_optimization():
     from program import SIMPLE_OPERATORS_DICT
     import test
 
@@ -86,7 +88,7 @@ if __name__ == "__main__":
 
     space = gym.spaces.Box(low=-20, high=20, shape=(2,))
     input = test.SMALL_INPUT
-    optim = TestPyGADOptimizer(config, SIMPLE_OPERATORS_DICT, space)
+    optim = PyGADOptimizer(config, SIMPLE_OPERATORS_DICT, space)
 
     print(f'Input: {input}')
     print(f'Ground program {optim.ground}:')

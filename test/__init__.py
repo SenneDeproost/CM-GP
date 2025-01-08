@@ -1,4 +1,8 @@
-import unittest
+import sys
+import os
+sys.path.insert(0, '../src/cmgp/')
+
+
 import gymnasium as gym
 import numpy as np
 
