@@ -1,7 +1,8 @@
 import sys
 import os
-sys.path.insert(0, '../src/cmgp/')
-
+sys.path.append('../src/cmgp/')
+sys.path.append('./src/cmgp/')
+print(os.getcwd())
 
 import gymnasium as gym
 import numpy as np

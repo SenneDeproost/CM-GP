@@ -198,4 +198,4 @@ if __name__ == "__main__":
         pprint(data)
         pyrallis.load(exp, f)
 
-    os.remove('test.yaml')
+    #os.remove('test.yaml')

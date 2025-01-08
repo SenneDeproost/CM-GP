@@ -1,10 +1,11 @@
 import sys
 
 #sys.path.insert(0, "../")
-from typing import List
+#from typing import List
 
 import gym
 import numpy as np
+from typing import List
 from optimizer import PyGADOptimizer
 from config import OptimizerConfig
 from program.operators import Operator
