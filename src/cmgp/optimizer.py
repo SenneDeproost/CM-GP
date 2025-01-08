@@ -83,7 +83,7 @@ class PyGADOptimizer:
             save_solutions=False,
             save_best_solutions=False,
             on_fitness=print_fitness,
-            parallel_processing=16,  # Utilize all available resources
+            parallel_processing=1,  # Utilize all available resources
             # Mutation
             mutation_probability=c.gene_mutation_prob,
             #mutation_percent_genes=c.gene_mutation_percent,

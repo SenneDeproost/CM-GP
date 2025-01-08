@@ -1,7 +1,6 @@
-# docs and experiment results can be found at https://docs.cleanrl.dev/rl-algorithms/td3/#td3_continuous_actionpy
-import os
 import random
 import time
+from copy import copy
 from dataclasses import dataclass
 import pyrallis
 
@@ -12,17 +11,68 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import tyro
+import types
 
 from stable_baselines3.common.buffers import ReplayBuffer
+from tensorflow.compiler.tf2xla.python.xla import self_adjoint_eig
 from torch.utils.tensorboard import SummaryWriter
 from torch.autograd import grad
 
 from optimizer import PyGADOptimizer
-from config import ExperimentConfig, CriticConfig
+from config import ExperimentConfig, CriticConfig, OptimizerConfig
 
 import envs
 from program import SIMPLE_OPERATORS_DICT
 from critic import Critic
+
+
+
+
+class CustomOptimizer(PyGADOptimizer):
+
+    def __init__(self, config: OptimizerConfig, operators, space):
+        super().__init__(config, operators, space)
+        self.env = None
+
+    # New fit function
+    def fitness_function(self, _, solution, solution_index) -> float:
+        fitness = 0.0
+
+        prog = self.population.realize(solution_index)
+
+        obs, _ = self.env.reset()
+
+        terminated, truncated = False, False
+
+        while not terminated or not truncated:
+
+            action = prog(obs)
+            next_obs, reward, terminated, truncated, info = self.env.step([action])
+
+            fitness += reward
+            obs = next_obs
+
+            if terminated or truncated:
+                break
+        return fitness
+
+    def fit(self) -> None:
+
+        self._optim.initial_population = self.raw_population  #self.population.raw_genes()
+
+        # Iterate with optimizer
+        #self._optim = self._init_optimizer()
+        self.reset_solutions()
+        self._optim.run()
+
+        self.raw_population = self._optim.population
+        self.population.update(self._optim.population)
+
+        # Set best results
+        best_sol, best_fit, best_idx = self._optim.best_solution()
+        self.best_solution_index = best_idx
+        self.best_fitness = best_fit
+        self.best_program = self.population.realize(self.best_solution_index)
 
 
 def make_env(env_id, seed, idx, capture_video, run_name):
@@ -34,20 +84,6 @@ def make_env(env_id, seed, idx, capture_video, run_name):
     env = gym.wrappers.RecordEpisodeStatistics(env)
     env.action_space.seed(seed)
     return env
-
-
-# ALGO LOGIC: initialize agent here:
-class QNetwork(nn.Module):
-    def __init__(self, env):
-        super().__init__()
-        self.fc1 = nn.Linear(np.array(env.observation_space.shape).prod() + np.prod(env.action_space.shape), 128)
-        self.fc3 = nn.Linear(128, 1)
-
-    def forward(self, x, a):
-        x = torch.cat([x, a], 1)
-        x = F.relu(self.fc1(x))
-        x = self.fc3(x)
-        return x
 
 
 def get_state_actions(program_optimizers, obs, env, args):
@@ -100,11 +136,14 @@ if __name__ == "__main__":
     assert isinstance(env.action_space, gym.spaces.Box), "only continuous action space is supported"
 
     # Actor is a learnable program for each action in the action space
-    program_optimizers = [PyGADOptimizer(
+    program_optimizers = [CustomOptimizer(
         args.training.optimizer,
         SIMPLE_OPERATORS_DICT,  # Todo: change!
         env.observation_space,
     ) for i in range(env.action_space.shape[0])]
+
+    for optimizer in program_optimizers:
+        optimizer.env = copy(env)
 
     for action_index in range(env.action_space.shape[0]):
         print(f"a[{action_index}] = {program_optimizers[action_index].best_program}")
@@ -113,13 +152,7 @@ if __name__ == "__main__":
     critic = Critic(env, critic_config)
 
     env.observation_space.dtype = np.float32
-    rb = ReplayBuffer(
-        args.training.agent.buffer_size,
-        env.observation_space,
-        env.action_space,
-        device,
-        handle_timeout_termination=False,
-    )
+
     start_time = time.time()
 
     # TRY NOT TO MODIFY: start the game
@@ -127,13 +160,7 @@ if __name__ == "__main__":
 
     for global_step in range(args.training.timesteps):
 
-        # ALGO LOGIC: put action logic here
-        if global_step < args.training.start_learning:
-            action = env.action_space.sample()
-        else:
-            with torch.no_grad():
-                action = get_state_actions(program_optimizers, obs[None, :], env, args)[0]
-                action = np.random.normal(loc=action, scale=args.training.agent.policy_noise)
+        action = get_state_actions(program_optimizers, obs[None, :], env, args)[0]
 
         # TRY NOT TO MODIFY: execute the game and log data.
         next_obs, reward, termination, truncation, info = env.step(action)
@@ -141,75 +168,19 @@ if __name__ == "__main__":
         #print(f'Action: {action}')
         #print(f'Reward: {reward}')
 
+        for action_index in range(env.action_space.shape[0]):
+            optimizer = program_optimizers[action_index]
+            optimizer.fit(obs, action)
+            print(f"a[{action_index}] = {program_optimizers[action_index].best_program}")
+            program_optimizers[action_index] = optimizer
+
         # TRY NOT TO MODIFY: record rewards for plotting purposes
         if 'episode' in info:
             print(f"global_step={global_step}, episodic_return={info['episode']['r']}")
             writer.add_scalar("charts/episodic_return", info["episode"]["r"], global_step)
             writer.add_scalar("charts/episodic_length", info["episode"]["l"], global_step)
 
-        # TRY NOT TO MODIFY: save data to reply buffer; handle `final_observation`
-        real_next_obs = next_obs.copy()
-        rb.add(obs, real_next_obs, action, reward, termination, info)
 
-        # RESET
-        if termination or truncation:
-            next_obs, _ = env.reset()
-
-        # TRY NOT TO MODIFY: CRUCIAL step easy to overlook
-        obs = next_obs
-
-        # ALGO LOGIC: training.
-        if global_step > args.training.start_learning:
-            data = rb.sample(args.training.agent.critic_batch_size)
-            with torch.no_grad():
-                clipped_noise = (torch.randn_like(
-                    data.actions, device=device) * args.training.agent.policy_noise).clamp(
-                    -args.training.agent.noise_clip, args.training.agent.noise_clip
-                )
-
-                # Go over all observations the buffer provides
-                next_state_actions = get_state_actions(program_optimizers,
-                                                       data.next_observations.detach().numpy(), env, args)
-                next_state_actions = torch.tensor(next_state_actions)
-                next_state_actions = (next_state_actions + clipped_noise).clamp(
-                    env.action_space.low[0], env.action_space.high[0]).float()
-
-            critic.learn_values(data, next_state_actions)
-
-            # Optimize the program
-            if global_step % args.training.policy_update == 0:
-
-                # New sampling
-                #data = rb.sample(args.training.agent.actor_batch_size) # Was a mistake
-
-                orig_program_actions = get_state_actions(program_optimizers,
-                                                         data.observations.detach().numpy(), env, args)
-                cur_program_actions = np.copy(orig_program_actions)
-                print('BEFORE ACTIONS', orig_program_actions[0:4])
-
-                cur_program_actions = critic.improve_actions(cur_program_actions, data.observations.detach().numpy())
-
-                print('IMPROVED ACTIONS', cur_program_actions[0:4])
-
-                # Fit the program optimizers on all the action dimensions
-                states = data.observations.detach().numpy()
-                actions = cur_program_actions
-
-                print('Best program:')
-                #writer.add_scalar("losses/program_objective", program_objective.item(), global_step)
-
-                for action_index in range(env.action_space.shape[0]):
-                    optimizer = program_optimizers[action_index]
-
-                    optimizer.fit(states, actions[:, action_index])
-                    print(f"a[{action_index}] = {program_optimizers[action_index].best_program}")
-                    program_optimizers[action_index] = optimizer
-
-                    #for i in range(len(optimizer.population.individuals)):
-                    #    print(optimizer.population.realize(i))
-
-                # update the target network
-                critic.update_target()
 
             if global_step % 10 == 0:
                 pass

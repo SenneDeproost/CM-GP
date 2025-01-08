@@ -78,11 +78,11 @@ class OptimizerConfig:
     # Number of parents mating
     n_parents_mating: int = field(default=50)
     # Probability of gene mutation
-    gene_mutation_prob: float = field(default=0.05) # 0.1
+    gene_mutation_prob: float = field(default=0.1) # 0.1
     # Percentage of genes to mutate (no effect if gene_mutation_prob is given)
     #gene_mutation_percent: float = field(default=10.0)
     # How many elites to keep
-    elitism: int = field(default=10) # High enough!
+    elitism: int = field(default=3) # High enough!
     # Type of mutation
     mutation: str = field(default='random')
     # Range of mutation values
@@ -114,7 +114,7 @@ class AgentConfig:
     # Batch size of sample from replay memory for critic
     critic_batch_size: int = field(default=256) # 256
     # Batch size of sample from replay memory for actor
-    actor_batch_size: int = field(default=10)  # 256
+    actor_batch_size: int = field(default=1)  # 256 # Was a mistake
     # Scale of the policy noise
     policy_noise: float = field(default=0.1) # 0.1
     # Noise clip of the Target Policy Smoothing Regularization
@@ -159,7 +159,7 @@ class TrainingConfig:
     # Timestep to start learning
     start_learning: int = field(default=10)
     # Frequency of training the policy
-    policy_update: int = field(default=8) #32 # Not too high!
+    policy_update: int = field(default=10) #32 # Not too high!
 
 
 @dataclass
