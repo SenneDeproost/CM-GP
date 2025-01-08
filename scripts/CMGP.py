@@ -1,5 +1,12 @@
 # docs and experiment results can be found at https://docs.cleanrl.dev/rl-algorithms/td3/#td3_continuous_actionpy
 import os
+import sys
+
+import yaml
+
+sys.path.append('../src/cmgp/')
+sys.path.append('../')
+import os
 import random
 import time
 from dataclasses import dataclass
@@ -65,8 +72,9 @@ def get_state_actions(program_optimizers, obs, env, args):
     return np.array(program_actions)
 
 
-if __name__ == "__main__":
-    args = tyro.cli(ExperimentConfig)
+def main(config: ExperimentConfig):
+
+    args = config
 
     run_name = f"{args.env_id}__{args.log.run_name}__{args.seed}__{int(time.time())}"
     if args.log.wandb.track:
@@ -211,13 +219,24 @@ if __name__ == "__main__":
                 # update the target network
                 critic.update_target()
 
-            if global_step % 10 == 0:
-                writer.add_scalar("losses/qf1_values", qf1_a_values.mean().item(), global_step)
+            #if global_step % 10 == 0:
+                #writer.add_scalar("losses/qf1_values", qf1_a_values.mean().item(), global_step)
                 #writer.add_scalar("losses/qf2_values", qf2_a_values.mean().item(), global_step)
-                writer.add_scalar("losses/qf1_loss", qf1_loss.item(), global_step)
-                writer.add_scalar("losses/qf2_loss", qf2_loss.item(), global_step)
-                writer.add_scalar("losses/qf_loss", qf_loss.item() / 2.0, global_step)
-                writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
+                #writer.add_scalar("losses/qf1_loss", qf1_loss.item(), global_step)
+                #writer.add_scalar("losses/qf2_loss", qf2_loss.item(), global_step)
+                #writer.add_scalar("losses/qf_loss", qf_loss.item() / 2.0, global_step)
+                #writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
 
     env.close()
     writer.close()
+
+if __name__ == "__main__":
+    args = tyro.cli(ExperimentConfig)
+
+    if args.config_file is not None:
+        c = ExperimentConfig
+        with open(args.config_file, 'r') as f:
+            data = yaml.load(f, Loader=yaml.SafeLoader)
+            pyrallis.load(c, f)
+
+    main(args)

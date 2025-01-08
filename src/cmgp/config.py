@@ -166,6 +166,9 @@ class TrainingConfig:
 class ExperimentConfig:
     """Configuration for performing a single experiment"""
 
+    # Config file
+    config_file: Union[str, None] = field(default=None)
+
     # Training
     training: TrainingConfig = field(default_factory=TrainingConfig)
 
