@@ -15,8 +15,7 @@ import torch.optim as optim
 
 from stable_baselines3.common.buffers import ReplayBuffer, ReplayBufferSamples
 
-from config import CriticConfig
-from src.cmgp.config import ExperimentConfig
+from config import CriticConfig, ExperimentConfig
 
 
 # Source: https://docs.cleanrl.dev/rl-algorithms/td3/#td3_continuous_actionpy
