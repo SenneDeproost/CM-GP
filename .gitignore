@@ -12,3 +12,5 @@ wandb/
 .DS_Store
 
 _old/
+
+*.ipynb_checkpoints*
