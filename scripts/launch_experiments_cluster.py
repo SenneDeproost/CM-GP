@@ -13,7 +13,7 @@ SCRIPT = 'CMGP.py'
 def run(config_file: str):
 
     for seed in SEEDS:
-        cmd = f'bash run_experiment_cluster.sh {SCRIPT} --config --seed={seed}'
+        cmd = f'bash run_experiment_cluster.sh {SCRIPT} --config={config_file} --seed={seed}'
         subprocess.run(cmd, shell=True, executable="/bin/bash")
 
 
