@@ -9,7 +9,7 @@ import pyrallis
 import yaml
 from config import ExperimentConfig
 
-SEEDS = list(range(0, 400, 10))
+SEEDS = list(range(0, 40, 10))
 SCRIPT = 'CMGP_PyGAD.py'
 
 def run(config_file: str):

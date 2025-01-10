@@ -9,7 +9,7 @@ log:
   save: false
   video: false
   wandb:
-    entity: null
+    entity: GECCO25
     project: GECCO25
     tags: []
     track: true
@@ -54,4 +54,4 @@ training:
       representation: Cartesian
   policy_update: 10
   start_learning: 10
-  timesteps: 500
+  timesteps: 50000
