@@ -1,21 +1,20 @@
 import os
 import subprocess
 from pprint import pprint
-import sys
-sys.path.append('../src/cmgp/')
-print(os.getcwd())
+os.chdir('../')
 
 import pyrallis
 import yaml
-from config import ExperimentConfig
+from src.cmgp.config import ExperimentConfig
 
-SEEDS = list(range(0, 400, 10))
-SCRIPT = 'CMGP_PyGAD.py'
+#SEEDS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+SEEDS = [990]
+SCRIPT = 'CMGP.py'
 
 def run(config_file: str):
 
     for seed in SEEDS:
-        cmd = f'bash run_experiment_cluster.sh {SCRIPT} --config={config_file} --seed={seed}'
+        cmd = f'bash run_experiment_cluster.sh {SCRIPT} --config --seed={seed}'
         subprocess.run(cmd, shell=True, executable="/bin/bash")
 
 
