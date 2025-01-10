@@ -22,4 +22,5 @@ def run(config_file: str):
 if __name__ == "__main__":
     files = os.listdir('./configs')
     for file in files:
+        file = os.path.join('./configs', file)
         run(file)

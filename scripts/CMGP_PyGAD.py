@@ -83,6 +83,7 @@ def main(config: ExperimentConfig):
         wandb.init(
             project=args.log.wandb.project,
             entity=args.log.wandb.entity,
+            group=args.log.wandb.group,
             sync_tensorboard=True,
             config=vars(args),
             name=run_name,

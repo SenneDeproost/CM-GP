@@ -14,9 +14,11 @@ import yaml
 @dataclass
 class WandbConfig:
     # Wandb track
-    track: bool = field(default=True)
+    track: bool = field(default=False)
     # Wandb project name
     project: str = field(default='test')
+    # Wandb group name
+    group: str = field(default='test')
     # Wandb tags
     tags: tuple = field(default=tuple())
     # Wandb entity name

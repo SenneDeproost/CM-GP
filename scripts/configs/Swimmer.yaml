@@ -1,11 +1,11 @@
 cuda: false
 deterministic: true
-env_id: InvertedPendulum-v4
+env_id: Swimmer-v4
 log:
   huggingface:
     entity: null
     upload: false
-  run_name: InvertedPendulum-v4
+  run_name: Swimmer-v4
   save: false
   video: false
   wandb:
@@ -13,7 +13,7 @@ log:
     project: GECCO25
     tags: []
     track: true
-    group: InvertedPendulum-v4
+    group: Swimmer-v4
 seed: 0
 training:
   agent:
