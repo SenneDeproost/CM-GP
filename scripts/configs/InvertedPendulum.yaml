@@ -10,7 +10,7 @@ log:
   video: false
   wandb:
     entity: null
-    project: GECCO25_test
+    project: GECCO25
     tags: []
     track: false
 seed: 0

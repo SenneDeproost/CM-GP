@@ -65,14 +65,13 @@ class Critic:
         self.optimizer = optim.Adam(self.model.parameters(), lr=self.config.learning_rate)
 
     # For a given batch of actions, improve them using critic gradients
-    def improve_actions(self, actions: np.ndarray, states: np.ndarray) -> np.ndarray:
+    def improve_actions(self, actions: np.ndarray, states: np.ndarray) -> (np.ndarray, float):
 
         actions = torch.tensor(actions, requires_grad=True)
         res_actions = copy(actions)
         og_actions = copy(actions)
 
-        #predictions = []
-
+        deltas = torch.zeros(size=actions.shape, requires_grad=False)
         states = torch.tensor(states, requires_grad=True)
 
         # Iterate several times over the actions to improve them
@@ -89,7 +88,9 @@ class Critic:
                 break
 
             #g = torch.tensor(g, requires_grad=True)
-            res_actions = res_actions + self.config.update_rate*g
+            delta = self.config.update_rate*g
+            res_actions = res_actions + delta
+            deltas += delta.detach()
             #predictions.append(res_actions[1].detach().numpy()[0])
 
 
@@ -99,10 +100,12 @@ class Critic:
         #plt.plot(x, y)
         #plt.show()
 
-        return res_actions.detach().numpy()
+        res_actions = res_actions.to(dtype=torch.float64)
+
+        return res_actions.detach().numpy(), deltas.detach().numpy()
 
     # Learn Q values
-    def learn_values(self, data: ReplayBufferSamples, next_actions: torch.Tensor) -> float:
+    def learn_values(self, data: ReplayBufferSamples, next_actions: torch.Tensor) -> (float, float):
 
         with torch.no_grad():
             q_next_target = self.target_model(data.next_observations, next_actions)
@@ -116,6 +119,8 @@ class Critic:
         self.optimizer.zero_grad()
         q_loss.backward()
         self.optimizer.step()
+
+        return q_loss.item(), q_a_values.detach().numpy()
 
     # Update target network when updating policy
     def update_target(self) -> None:

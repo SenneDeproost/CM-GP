@@ -14,7 +14,7 @@ import yaml
 @dataclass
 class WandbConfig:
     # Wandb track
-    track: bool = field(default=False)
+    track: bool = field(default=True)
     # Wandb project name
     project: str = field(default='test')
     # Wandb tags

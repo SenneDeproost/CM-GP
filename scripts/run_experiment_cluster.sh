@@ -11,7 +11,7 @@ args=("$@")
 #module load PyTorch-bundle/2.3.0-foss-2023a
 
 # Load environment
-#source /scratch/brussel/103/vsc10368/_VENVS/cm-gp/bin/activate
+source /scratch/brussel/103/vsc10368/_VENVS/cm-gp/bin/activate
 
 # Run experiment
 python ${args[*]}

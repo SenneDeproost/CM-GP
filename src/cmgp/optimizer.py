@@ -121,8 +121,8 @@ class PyGADOptimizer:
             fitness += distance
 
         # Avg
-        fitness = - fitness
-        #fitness = (fitness / batch_size)
+        #fitness = - fitness
+        fitness = -(fitness / batch_size)
 
         # Set best solution index if needed
         #if fitness > self.best_fitness:
@@ -174,7 +174,7 @@ class PyGADOptimizer:
         optim.pareto_fronts = None
 
     # Fit the produced actions to more optimal ones
-    def fit(self, critic_states, critic_actions) -> None:
+    def fit(self, critic_states, critic_actions) -> (float, float, float):
         # Update internal field for state and actions from the critic
         self._critic_states = critic_states
         self._critic_actions = critic_actions
@@ -199,6 +199,11 @@ class PyGADOptimizer:
         self.best_solution_index = best_idx
         self.best_fitness = best_fit
         self.best_program = self.population.realize(self.best_solution_index)
+
+        return (self._optim.last_generation_fitness.max(),
+                self._optim.last_generation_fitness.min(),
+                self._optim.last_generation_fitness.mean())
+
 
 
 if __name__ == "__main__":
