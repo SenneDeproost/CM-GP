@@ -15,7 +15,7 @@ SCRIPT = 'CMGP_PyGAD.py'
 def run(config_file: str):
 
     for seed in SEEDS:
-        cmd = f'bash run_experiment_cluster.sh {SCRIPT} --config={config_file} --seed={seed}'
+        cmd = f'sbatch run_experiment_cluster.sh {SCRIPT} --config_file={config_file} --seed={seed}'
         subprocess.run(cmd, shell=True, executable="/bin/bash")
 
 
