@@ -7,8 +7,7 @@ import pyrallis
 import yaml
 from src.cmgp.config import ExperimentConfig
 
-#SEEDS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
-SEEDS = [990]
+SEEDS = list(range(0, 400, 10))
 SCRIPT = 'CMGP.py'
 
 def run(config_file: str):
