@@ -1,7 +1,6 @@
 import sys
 import os
 sys.path.append('../src/cmgp/')
-sys.path.append('./src/cmgp/')
 print(os.getcwd())
 
 import gymnasium as gym
@@ -40,6 +39,16 @@ BIG_GENE_1_OUTPUT = np.array([-14, 0,     0.39991735, 0.0, 0.0,    # [ input_0 |
                               -9,  4.111, 1.364,      0.0, 0.0,    # [ *       | [4, 1, 0, 0] ]
                               5                                    # Outputs: 5
                               ])
+
+# (id(input_0) + 5.0) * input_1
+BIG_GENE_1_OUTPUT_REDUX = np.array([-12, 0,     0.39991735,     # [ input_0 | [0, 0] ]
+                                    -13, 0,     0,              # [ input_1 | [0, 0] ]
+                                    -6,  0,     1.37312973,     # [ id      | [0, 1] ]
+                                    5,   0,     0,              # [ 5.0     | [0, 0] ]
+                                    -7,  2,     3.34511764,     # [ +       | [2, 3] ]
+                                    -9,  4.111, 1.364,          # [ *       | [4, 1] ]
+                                    5                                    # Outputs: 5
+                                    ])
 
 # ∑[ (id(input_0) + 5.0) * input_1, (id(input_0) + 5.0) ]
 BIG_GENE_2_OUTPUT = np.array([-14, 0,     0.39991735, 0.0, 0.0,    # [ input_0 | [0, 0, 0, 0] ]

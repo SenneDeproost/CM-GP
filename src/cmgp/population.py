@@ -278,32 +278,41 @@ class Population:
         self.n_genes = n_genes
         self.genome_space = genome_space
 
-        self.individuals = []
+        self.individuals = np.zeros((n_individuals, n_genes))
         self._init_population()
 
-    def __getitem__(self, i) -> Genome:
+    def __getitem__(self, i) -> np.ndarray[float]:
         return self.individuals[i]
+
+    # Return Genome abstraction from genes at index in population
+    def get_genome(self, index: int) -> Genome:
+        genes = self.individuals[index]
+        genome = Genome(genes=genes, genome_space=self.genome_space, pop_index=index)
+        return genome
 
     # Initialize population by populating it with genomes
     def _init_population(self) -> None:
         for i in range(self.n_individuals):
-            genome = Genome(n_genes=self.n_genes, genome_space=self.genome_space, pop_index=i)
-            self.individuals.append(genome)
+            #genome = Genome(n_genes=self.n_genes, genome_space=self.genome_space, pop_index=i)
+            genes = np.zeros(self.n_genes)
+            for j, gene in enumerate(genes):
+                gene_space = self.genome_space[j]
+                genes[j] = gene_space.sample()
+            self.individuals[i] = genes
 
 
 # Helper function to return all output node genes
-def has_output(genome: Genome, config: CartesianConfig) -> bool:
-    outputs = genome.every_ith_gene(n=1, seq_len=genes_per_node(config))
-    has = 1 in outputs
-    return has
+#def has_output(genome: Genome, config: CartesianConfig) -> bool:
+#    outputs = genome.every_ith_gene(n=1, seq_len=genes_per_node(config))
+#    has = 1 in outputs
+#    return has
 
 
 # Resolve genomes with no output node
-def resolve_output(genome: Genome, config: CartesianConfig) -> None:
-    # Make last node an output node
-    i = -(config.max_node_arity + 1)
-    genome.genes[i] = 1
-
+#def resolve_output(genome: Genome, config: CartesianConfig) -> None:
+#    # Make last node an output node
+#    i = -(config.max_node_arity + 1)
+#    genome.genes[i] = 1
 
 # Generate Cartesian gene space
 def generate_cartesian_genome_space(config: CartesianConfig,
@@ -436,19 +445,20 @@ class CartesianPopulation(Population):
         return f'Cartesian pop with {self.n_individuals} individuals of genome length {self.n_genes}'
 
     # Dunder for individual genome access
-    def __getitem__(self, i):
-        return self.individuals[i].genes
+    def __getitem__(self, i) -> np.ndarray[float]:
+        return self.individuals[i]
 
     # Get population as an array of genomes
-    def raw_genes(self) -> np.ndarray:
-        return np.array([i.genes for i in self.individuals])
+    #def raw_genes(self) -> np.ndarray:
+    #    return np.array([i.genes for i in self.individuals])
 
     # Get the realization of genome with index
-    def realize(self, index):
+    def realize(self, index: int):
         from program.realization import CartesianProgram
-        individual = self.individuals[index]
+        genes = self.individuals[index]
+        genome = Genome(genes=genes, genome_space=self.genome_space, pop_index=index)
         realization = CartesianProgram(
-            genome=individual,
+            genome=genome,
             input_space=self.state_space,
             operators=self.operators,
             config=self.config
@@ -469,10 +479,14 @@ class CartesianPopulation(Population):
             res.append(gene.gene_range.description())
         return res
 
+    # Updates genes of individual at index
+    #def update(self, index: int, new_genes: np.ndarray[float]) -> None:
+    #    self.individuals[index] = new_genes
+
     # Update all genes of the population
-    def update(self, new_population: np.ndarray[float]) -> None:
-        for i, genome in enumerate(self.individuals):
-            self.individuals[i].genes = new_population[i]
+    #def update_all(self, new_population: np.ndarray[float]) -> None:
+    #    for i, genome in enumerate(self.individuals):
+    #        self.individuals[i] = new_population[i]
 
     # Generate random program from population
     def random_program(self):
@@ -490,6 +504,7 @@ class CartesianPopulation(Population):
         )
 
         return program
+
 
 if __name__ == '__main__':
     # Gene space test

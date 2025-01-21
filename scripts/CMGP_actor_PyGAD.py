@@ -44,18 +44,25 @@ def make_env(env_id, seed, idx, capture_video, run_name):
     return env
 
 
-# ALGO LOGIC: initialize agent here:
-class QNetwork(nn.Module):
+class Actor(nn.Module):
     def __init__(self, env):
         super().__init__()
-        self.fc1 = nn.Linear(np.array(env.observation_space.shape).prod() + np.prod(env.action_space.shape), 128)
-        self.fc3 = nn.Linear(128, 1)
+        self.fc1 = nn.Linear(np.array(env.observation_space.shape).prod(), 256)
+        self.fc2 = nn.Linear(256, 256)
+        self.fc_mu = nn.Linear(256, np.prod(env.observation_space.shape))
+        # action rescaling
+        self.register_buffer(
+            "action_scale", torch.tensor((env.action_space.high - env.action_space.low) / 2.0, dtype=torch.float32)
+        )
+        self.register_buffer(
+            "action_bias", torch.tensor((env.action_space.high + env.action_space.low) / 2.0, dtype=torch.float32)
+        )
 
-    def forward(self, x, a):
-        x = torch.cat([x, a], 1)
+    def forward(self, x):
         x = F.relu(self.fc1(x))
-        x = self.fc3(x)
-        return x
+        x = F.relu(self.fc2(x))
+        x = torch.tanh(self.fc_mu(x))
+        return x * self.action_scale + self.action_bias
 
 
 def get_state_actions(program_optimizers, obs, env, args):
@@ -121,8 +128,16 @@ def main(config: ExperimentConfig):
     #for action_index in range(env.action_space.shape[0]):
     #    print(f"a[{action_index}] = {program_optimizers[action_index].best_program}")
 
+    # Critic init
+
     critic_config = CriticConfig()
     critic = Critic(env, critic_config)
+
+    # Actor init
+    actor = Actor(env).to(device)
+    target_actor = Actor(env).to(device)
+    target_actor.load_state_dict(actor.state_dict())
+    actor_optimizer = optim.Adam(list(actor.parameters()), lr=args.training.agent.learning_rate)
 
     env.observation_space.dtype = np.float32
     rb = ReplayBuffer(
@@ -185,17 +200,30 @@ def main(config: ExperimentConfig):
                     -args.training.agent.noise_clip, args.training.agent.noise_clip
                 )
 
+                next_state_actions = (target_actor(data.next_observations) + clipped_noise).clamp(
+                    env.action_space.low[0], env.action_space.high[0]
+                )
+
                 # Go over all observations the buffer provides
-                next_state_actions = get_state_actions(program_optimizers,
-                                                       data.next_observations.detach().numpy(), env, args)
-                next_state_actions = torch.tensor(next_state_actions)
-                next_state_actions = (next_state_actions + clipped_noise).clamp(
-                    env.action_space.low[0], env.action_space.high[0]).float()
+                #next_state_actions = get_state_actions(program_optimizers,
+                #                                       data.next_observations.detach().numpy(), env, args)
+                #next_state_actions = torch.tensor(next_state_actions)
+                #next_state_actions = (next_state_actions + clipped_noise).clamp(
+                #    env.action_space.low[0], env.action_space.high[0]).float()
 
             critic_loss, q_values = critic.learn_values(data, next_state_actions)
 
             # Optimize the program
             if global_step % args.training.policy_update == 0:
+
+                actor_actions = actor(data.observations)
+                actor_loss = -critic(data.observations, actor_actions).mean()
+                actor_optimizer.zero_grad()
+                actor_loss.backward()
+                actor_optimizer.step()
+
+                for param, target_param in zip(actor.parameters(), target_actor.parameters()):
+                    target_param.data.copy_(args.tau * param.data + (1 - args.tau) * target_param.data)
 
                 # New sampling
                 #data = rb.sample(args.training.agent.actor_batch_size) # Was a mistake
@@ -203,19 +231,20 @@ def main(config: ExperimentConfig):
                 program_actions = get_state_actions(program_optimizers,
                                                     data.observations.detach().numpy(), env, args)
 
+
                 cur_program_actions = np.copy(program_actions)
-                print('BEFORE ACTIONS')
+                print('PROGRAM ACTIONS')
                 pprint(program_actions[0:4])
 
-                improved_actions, improved_action_deltas = (
-                    critic.improve_actions(cur_program_actions, data.observations.detach().numpy()))
+                #improved_actions, improved_action_deltas = (
+                #    critic.improve_actions(cur_program_actions, data.observations.detach().numpy()))
 
-                print('IMPROVED ACTIONS')
-                pprint(improved_actions[0:4])
+                print('ACTOR ACTIONS')
+                pprint(actor_actions[0:4])
 
                 # Fit the program optimizers on all the action dimensions
                 states = data.observations.detach().numpy()
-                actions = improved_actions
+                actions = actor_actions
 
                 print('Best program:')
 

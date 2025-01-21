@@ -18,14 +18,13 @@ from tensorflow.compiler.tf2xla.python.xla import self_adjoint_eig
 from torch.utils.tensorboard import SummaryWriter
 from torch.autograd import grad
 
-from optimizer import PyGADOptimizer
+from optimizer import PyGADOptimizer, print_fitness
 from config import ExperimentConfig, CriticConfig, OptimizerConfig
 
 import envs
 from program import SIMPLE_OPERATORS_DICT
 from critic import Critic
-
-
+import yaml
 
 
 class CustomOptimizer(PyGADOptimizer):
@@ -63,7 +62,7 @@ class CustomOptimizer(PyGADOptimizer):
         self._optim.initial_population = self.raw_population  #self.population.raw_genes()
 
         # Iterate with optimizer
-        #self._optim = self._init_optimizer()
+        self._optim = self._init_optimizer()
         self.reset_solutions()
         self._optim.run()
 
@@ -104,8 +103,8 @@ def get_state_actions(program_optimizers, obs, env, args):
     return np.array(program_actions)
 
 
-if __name__ == "__main__":
-    args = tyro.cli(ExperimentConfig)
+def main(config: ExperimentConfig):
+    args = config
 
     run_name = f"{args.env_id}__{args.log.run_name}__{args.seed}__{int(time.time())}"
     if args.log.wandb.track:
@@ -132,8 +131,6 @@ if __name__ == "__main__":
     torch.manual_seed(args.seed)
     torch.backends.cudnn.deterministic = args.deterministic
 
-    device = torch.device("cuda" if torch.cuda.is_available() and args.cuda else "cpu")
-
     # env setup
     env = make_env(args.env_id, args.seed, 0, args.log.video, run_name)
     assert isinstance(env.action_space, gym.spaces.Box), "only continuous action space is supported"
@@ -151,14 +148,10 @@ if __name__ == "__main__":
     for action_index in range(env.action_space.shape[0]):
         print(f"a[{action_index}] = {program_optimizers[action_index].best_program}")
 
-    critic_config = CriticConfig()
-    critic = Critic(env, critic_config)
-
     env.observation_space.dtype = np.float32
 
     start_time = time.time()
 
-    # TRY NOT TO MODIFY: start the game
     obs, _ = env.reset(seed=args.seed)
 
     for global_step in range(args.training.timesteps):
@@ -167,5 +160,23 @@ if __name__ == "__main__":
             optimizer.fit()
             print(optimizer.best_program)
 
+
     env.close()
     writer.close()
+
+
+if __name__ == "__main__":
+
+    #if args.config_file is not None:
+    #    c = ExperimentConfig
+    #    with open(args.config_file, 'r') as f:
+    #        data = yaml.load(f, Loader=yaml.SafeLoader)
+    #        pyrallis.load(c, f)
+
+    c = ExperimentConfig()
+    c.env_id = 'InvertedPendulum-v4'
+    c.training.optimizer.n_generations = 1000
+
+    #args = tyro.cli(c)
+
+    main(c)

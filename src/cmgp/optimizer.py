@@ -36,7 +36,7 @@ class PyGADOptimizer:
         self.operators = [x for y in self.operators_dict.values() for x in y]
 
         # Create the initial population
-        self.population, self.raw_population = self._init_population()
+        self.population = self._init_population()
         self.range = self.population.range_description()
 
         self.best_solution_index = 0
@@ -62,11 +62,10 @@ class PyGADOptimizer:
         return f'PyGAD optimizer with pop size {self.config.n_individuals}, best fit {self.best_fitness}'
 
     # Create initial population
-    def _init_population(self) -> tuple[CartesianPopulation, np.ndarray]:
+    def _init_population(self) -> CartesianPopulation:
         c = self.config
         population = CartesianPopulation(c, self.operators_dict, self.state_space)
-        raw_population = population.raw_genes()
-        return population, raw_population
+        return population
 
     # Initialize PyGAD optimizer
     def _init_optimizer(self) -> pygad.GA:
@@ -75,13 +74,13 @@ class PyGADOptimizer:
             # General
             suppress_warnings=True,
             fitness_func=self.fitness_function,
-            initial_population=copy(self.raw_population),
+            initial_population=self.population.individuals,
             num_generations=c.n_generations,
             keep_elitism=c.elitism,
             gene_space=self.range,
             #gene_space={'low': 0, 'high': 10},
             save_solutions=False,
-            save_best_solutions=False,
+            save_best_solutions=True,
             on_fitness=print_fitness,
             parallel_processing=1,  # Utilize all available resources
             # Mutation
@@ -91,7 +90,7 @@ class PyGADOptimizer:
             random_mutation_min_val=c.mutation_val[0],
             random_mutation_max_val=c.mutation_val[1],
             # Crossover
-            num_parents_mating=1,
+            num_parents_mating=c.n_parents_mating,
             crossover_type=c.crossover,
             parent_selection_type=c.parent_selection
         )
@@ -101,6 +100,9 @@ class PyGADOptimizer:
     def fitness_function(self, _, solution, solution_index) -> float:
         fitness = 0.0
 
+        #prog = self.population.realize(solution_index) # Another stupid bug draining my life energy
+
+        # Update population and realize at index
         prog = self.population.realize(solution_index)
 
         batch_size = self._critic_states.shape[0]
@@ -111,25 +113,12 @@ class PyGADOptimizer:
             # Calculate MSE between proposed and improved action
             action = prog(state)
             desired_action = self._critic_actions[i]
-
             distance = (desired_action - action) ** 2
-
-            # Checking bug for 0 producing programs
-            #if action == 0:
-            #    fitness += 99
-            #else:
             fitness += distance
 
         # Avg
         #fitness = - fitness
         fitness = -(fitness / batch_size)
-
-        # Set best solution index if needed
-        #if fitness > self.best_fitness:
-        #    print(f'--- New best program {prog} with fitness: {fitness} ---')
-        #    self.best_fitness = fitness
-        #    self.best_solution_index = solution_index
-        #    self.best_program = prog
 
         return fitness
 
@@ -179,31 +168,25 @@ class PyGADOptimizer:
         self._critic_states = critic_states
         self._critic_actions = critic_actions
 
-        # ! Limit the amount of critic state actions
-        #self._critic_states = critic_states[:5]
-        #self._critic_actions = critic_actions[:5]
-
         # Reset initial population inside optimizer
-        self._optim.initial_population = self.raw_population  #self.population.raw_genes()
+        self._optim.initial_population = self.population.individuals
 
         # Iterate with optimizer
-        #self._optim = self._init_optimizer()
-        self.reset_solutions()
+        self.reset_solutions()   #!!!!!
         self._optim.run()
 
-        self.raw_population = self._optim.population
-        self.population.update(self._optim.population)
+        self.population.individuals = self._optim.population
 
         # Set best results
         best_sol, best_fit, best_idx = self._optim.best_solution()
         self.best_solution_index = best_idx
         self.best_fitness = best_fit
+
         self.best_program = self.population.realize(self.best_solution_index)
 
         return (self._optim.last_generation_fitness.max(),
                 self._optim.last_generation_fitness.min(),
                 self._optim.last_generation_fitness.mean())
-
 
 
 if __name__ == "__main__":

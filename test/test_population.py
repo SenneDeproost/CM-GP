@@ -1,7 +1,10 @@
+import sys
+sys.path.append('./src/cmgp/')
+
 import test
 from config import OptimizerConfig
 from population import CartesianPopulation
-from program import SIMPLE_OPERATORS_DICT, SIMPLE_OPERATORS
+from program import SIMPLE_OPERATORS_DICT, SIMPLE_OPERATORS, SIMPLE_FUNCTIONS, SIMPLE_FUNCTIONS_DICT
 from program.realization import CartesianProgram
 
 def test_random_program_from_population():
@@ -20,7 +23,7 @@ def test_random_program_from_population():
     # Realize programs
     for idx in range(c.n_individuals):
         print(f' \n Individual {idx}')
-        genome = pop.individuals[idx]
+        genome = pop.get_genome(idx)
         prog = CartesianProgram(genome, space, SIMPLE_OPERATORS, c.program)
         print(prog)
         print(prog.evaluate(i))
@@ -39,7 +42,7 @@ def test_random_program_from_population():
     # Realize programs
     for idx in range(c.n_individuals):
         print(f' \n Individual {idx}')
-        genome = pop.individuals[idx]
+        genome = pop.get_genome(idx)
         prog = CartesianProgram(genome, space, SIMPLE_OPERATORS, c.program)
         print(prog)
         print(prog.evaluate(i))
@@ -58,7 +61,7 @@ def test_random_program_from_population():
     # Realize programs
     for idx in range(c.n_individuals):
         print(f' \n Individual {idx}')
-        genome = pop.individuals[idx]
+        genome = pop.get_genome(idx)
         prog = CartesianProgram(genome, space, SIMPLE_OPERATORS, c.program)
         print(prog)
         print(prog.evaluate(i))

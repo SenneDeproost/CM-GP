@@ -9,11 +9,11 @@ from .operators import *
 
 # Abstraction for input variable ot the program
 class InputVar:
-    def __init__(self, index):
+    def __init__(self, index: int) -> None:
         self.index = index
 
     # Lambda that can access the given observation at any index
-    def __call__(self, input) -> callable:
+    def __call__(self, input: np.ndarray[float]) -> float:
         return input[self.index]
 
     # Dunder for input variable index
@@ -61,12 +61,8 @@ SIMPLE_OPERATORS_DICT = {
 
 SIMPLE_OPERATORS = [x for y in SIMPLE_OPERATORS_DICT.values() for x in y]
 
-#if __name__ == '__main__':
-#    i = SMALl_INPUT
-#    SIMPLE_OPERATORS = [x for y in SIMPLE_OPERATORS_DICT.values() for x in y]
-#    for operator in SIMPLE_OPERATORS:
-#        print("----------")
-#        print(operator)
-#        print(operator.print(i))
-#        print(operator(i))
-#        print("----------")
+# Simple functions (SIMPLE OPERATORS with max 2 operands)
+SIMPLE_FUNCTIONS_DICT = SIMPLE_OPERATORS_DICT.copy()
+del SIMPLE_FUNCTIONS_DICT[4]
+del SIMPLE_FUNCTIONS_DICT[3]
+SIMPLE_FUNCTIONS = [x for y in SIMPLE_FUNCTIONS_DICT.values() for x in y]

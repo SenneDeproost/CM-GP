@@ -61,7 +61,7 @@ class CartesianConfig:
     # Number maximum arity over the set of operators
     max_node_arity: int = field(default=4)
     # Highest number for constant
-    max_constant: float = field(default=20)
+    max_constant: float = field(default=1)  # Higher constant == more chance for constant ToDo: lower prob constant
     # Amount of outputs
     n_outputs: int = field(default=1)
 
@@ -88,7 +88,7 @@ class OptimizerConfig:
     # Type of mutation
     mutation: str = field(default='random')
     # Range of mutation values
-    mutation_val: tuple[float, float] = field(default=(-20.0, 20.0))
+    mutation_val: tuple[float, float] = field(default=(-20.0, 1.0)) # Bigger positive == higher chance constant
     # Type of crossover
     crossover: str = field(default='single_point')
     # Type of parent selection
@@ -116,7 +116,7 @@ class AgentConfig:
     # Batch size of sample from replay memory for critic
     critic_batch_size: int = field(default=256) # 256
     # Batch size of sample from replay memory for actor
-    actor_batch_size: int = field(default=1)  # 256 # Was a mistake
+    actor_batch_size: int = field(default=1000)  # 256 # Was a mistake, nonactive
     # Scale of the policy noise
     policy_noise: float = field(default=0.1) # 0.1
     # Noise clip of the Target Policy Smoothing Regularization
@@ -140,7 +140,7 @@ class CriticConfig:
     # Amount of update iterations
     gradient_updates: int = field(default=100) # 100
     # Gradient update threshold
-    update_threshold: float = field(default=1)
+    update_threshold: float = field(default=2)
     # Rate of update the gradient is applied
     update_rate: float = field(default=1)
 
@@ -161,7 +161,7 @@ class TrainingConfig:
     # Timestep to start learning
     start_learning: int = field(default=10)
     # Frequency of training the policy
-    policy_update: int = field(default=10) #32 # Not too high!
+    policy_update: int = field(default=10) #5 # Not too high!
 
 
 @dataclass
