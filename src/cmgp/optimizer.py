@@ -10,9 +10,11 @@ from typing import List
 import pygad
 import numpy as np
 from rich.box import SIMPLE
+from stable_baselines3.common.buffers import ReplayBuffer
 
 import test
 from population import CartesianPopulation
+from critic import Critic
 from program import Operator, SIMPLE_OPERATORS
 from config import *
 import gymnasium as gym
@@ -29,11 +31,21 @@ class PyGADOptimizer:
     def __init__(self,
                  config: OptimizerConfig,
                  operators_dict: dict[int, List[Operator]],
-                 state_space: gym.Space) -> None:
+                 state_space: gym.Space,
+                 buffer: ReplayBuffer = None,
+                 critic: Critic = None,
+                 buffer_batch_size: int = None) -> None:
         self.config = config
         self.state_space = state_space
         self.operators_dict = operators_dict
         self.operators = [x for y in self.operators_dict.values() for x in y]
+
+        # Use buffer to sample if present
+        self.buffer = buffer
+        self.critic = critic
+        if self.buffer is not None:
+            assert critic is not None, "Buffer given but no critic to calculate improved actions"
+        self.buffer_batch_size = buffer_batch_size
 
         # Create the initial population
         self.population = self._init_population()
@@ -98,27 +110,38 @@ class PyGADOptimizer:
         return instance
 
     def fitness_function(self, _, solution, solution_index) -> float:
-        fitness = 0.0
-
-        #prog = self.population.realize(solution_index) # Another stupid bug draining my life energy
-
         # Update population and realize at index
         prog = self.population.realize(solution_index)
 
-        batch_size = self._critic_states.shape[0]
+        # If buffer is given to the optimizer, sample from it each time fitness is calculated
+        if self.buffer is not None:
+            # Sample from buffer
+            states = self.buffer.sample(self.buffer_batch_size).observations.detach().numpy().astype(np.float32)
 
-        for i in range(batch_size):
-            state = self._critic_states[i]
+            # Calculate improved and program actions
+            try:
+                prog_actions = np.array([prog(state) for state in states]).reshape((-1,1)).astype(np.float32)
+            except Exception as e:
+                print('oei')
+            desired_actions, _ = self.critic.improve_actions(prog_actions, states)
+            desired_actions = desired_actions.astype(np.float32)
 
-            # Calculate MSE between proposed and improved action
-            action = prog(state)
-            desired_action = self._critic_actions[i]
-            distance = (desired_action - action) ** 2
-            fitness += distance
+        # Else, use given state/actions from the critic
+        else:
+            # Use given states
+            states = self._critic_states.astype(np.float32)
 
-        # Avg
-        #fitness = - fitness
-        fitness = -(fitness / batch_size)
+            # Compute program actions
+            prog_actions = np.array([prog(state) for state in states]).reshape((-1,1)).astype(np.float32)
+            desired_actions = self._critic_actions
+
+        # MSE
+        batch_size = states.shape[0]
+        try:
+            distance = (desired_actions - prog_actions) ** 2
+        except Exception as e:
+            print('oei')
+        fitness = -(distance.sum() / batch_size)
 
         return fitness
 

@@ -111,19 +111,6 @@ def main(config: ExperimentConfig):
 
     n_actions = env.action_space.shape[0]
 
-    # Actor is a learnable program for each action in the action space
-    program_optimizers = [PyGADOptimizer(
-        args.training.optimizer,
-        SIMPLE_OPERATORS_DICT,  # Todo: change!
-        env.observation_space,
-    ) for i in range(n_actions)]
-
-    #for action_index in range(env.action_space.shape[0]):
-    #    print(f"a[{action_index}] = {program_optimizers[action_index].best_program}")
-
-    critic_config = CriticConfig()
-    critic = Critic(env, critic_config)
-
     env.observation_space.dtype = np.float32
     rb = ReplayBuffer(
         args.training.agent.buffer_size,
@@ -132,6 +119,22 @@ def main(config: ExperimentConfig):
         device,
         handle_timeout_termination=False,
     )
+
+    critic_config = CriticConfig()
+    critic = Critic(env, critic_config)
+
+    # Actor is a learnable program for each action in the action space
+    program_optimizers = [PyGADOptimizer(
+        args.training.optimizer,
+        SIMPLE_OPERATORS_DICT,  # Todo: change!
+        env.observation_space,
+        critic=critic,
+        buffer=rb,
+        buffer_batch_size=args.training.agent.actor_batch_size) for _ in range(n_actions)]
+
+    #for action_index in range(env.action_space.shape[0]):
+    #    print(f"a[{action_index}] = {program_optimizers[action_index].best_program}")
+
     start_time = time.time()
 
     # TRY NOT TO MODIFY: start the game
@@ -222,7 +225,8 @@ def main(config: ExperimentConfig):
                 for action_index in range(n_actions):
                     optimizer = program_optimizers[action_index]
 
-                    max_fit, min_fit, mean_fit = optimizer.fit(states, actions[:, action_index])
+                    actions = actions[:, action_index].reshape(-1, 1)
+                    max_fit, min_fit, mean_fit = optimizer.fit(states, actions)
                     print(f"a[{action_index}] = {program_optimizers[action_index].best_program}")
                     program_optimizers[action_index] = optimizer
 
