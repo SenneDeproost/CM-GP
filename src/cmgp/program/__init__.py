@@ -42,7 +42,7 @@ SIMPLE_OPERATORS_DICT = {
         Cos(),
         Abs(),
         Exp(),
-        Log(),
+        #Log(),
         Neg(),
         Id()
     ],

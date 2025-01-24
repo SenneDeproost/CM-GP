@@ -5,6 +5,7 @@
 # 27/11/2024 - Senne Deproost & Denis Steckelmacher
 
 import sys
+import torch
 from copy import copy
 from typing import List
 import pygad
@@ -79,6 +80,13 @@ class PyGADOptimizer:
         population = CartesianPopulation(c, self.operators_dict, self.state_space)
         return population
 
+    # on_generation function to sample new experiences from buffer
+    def new_sample(self, ga) -> None:
+        # Check if buffer is given in the optimizer
+        if self.buffer is not None:
+            self._critic_states = self.buffer.sample(self.buffer_batch_size).observations.detach().numpy().astype(np.float32)
+
+
     # Initialize PyGAD optimizer
     def _init_optimizer(self) -> pygad.GA:
         c = self.config
@@ -90,10 +98,10 @@ class PyGADOptimizer:
             num_generations=c.n_generations,
             keep_elitism=c.elitism,
             gene_space=self.range,
-            #gene_space={'low': 0, 'high': 10},
             save_solutions=False,
             save_best_solutions=True,
             on_fitness=print_fitness,
+            on_generation=self.new_sample,
             parallel_processing=1,  # Utilize all available resources
             # Mutation
             mutation_probability=c.gene_mutation_prob,
@@ -113,35 +121,29 @@ class PyGADOptimizer:
         # Update population and realize at index
         prog = self.population.realize(solution_index)
 
-        # If buffer is given to the optimizer, sample from it each time fitness is calculated
+        # Compute program actions
+        prog_actions = np.array([prog(state) for state in self._critic_states]).reshape((-1,1)).astype(np.float32)
+
+        # Change large numbers to arbitrary large number
+        #prog_actions[prog_actions==torch.inf] = 9e6
+
+        #print(prog_actions)
+
         if self.buffer is not None:
-            # Sample from buffer
-            states = self.buffer.sample(self.buffer_batch_size).observations.detach().numpy().astype(np.float32)
-
-            # Calculate improved and program actions
-            try:
-                prog_actions = np.array([prog(state) for state in states]).reshape((-1,1)).astype(np.float32)
-            except Exception as e:
-                print('oei')
-            desired_actions, _ = self.critic.improve_actions(prog_actions, states)
+            desired_actions, _ = self.critic.improve_actions(prog_actions, self._critic_states)
             desired_actions = desired_actions.astype(np.float32)
-
-        # Else, use given state/actions from the critic
         else:
-            # Use given states
-            states = self._critic_states.astype(np.float32)
-
-            # Compute program actions
-            prog_actions = np.array([prog(state) for state in states]).reshape((-1,1)).astype(np.float32)
             desired_actions = self._critic_actions
 
         # MSE
-        batch_size = states.shape[0]
-        try:
-            distance = (desired_actions - prog_actions) ** 2
-        except Exception as e:
-            print('oei')
+        batch_size = self._critic_states.shape[0]
+        distance = (desired_actions - prog_actions) ** 2
         fitness = -(distance.sum() / batch_size)
+        #if fitness == -0.0:
+        #    fitness = -1e-10
+
+        #    self.critic.improve_actions(prog_actions, self._critic_states)
+        #    print('')
 
         return fitness
 
@@ -186,24 +188,27 @@ class PyGADOptimizer:
         optim.pareto_fronts = None
 
     # Fit the produced actions to more optimal ones
-    def fit(self, critic_states, critic_actions) -> (float, float, float):
-        # Update internal field for state and actions from the critic
+    def fit(self, critic_states=None, critic_actions=None) -> (float, float, float):
+        # Reset initial population inside optimizer
+        self._optim.initial_population = self.population.individuals
         self._critic_states = critic_states
         self._critic_actions = critic_actions
 
-        # Reset initial population inside optimizer
-        self._optim.initial_population = self.population.individuals
-
         # Iterate with optimizer
         self.reset_solutions()   #!!!!!
+        #self._optim = self._init_optimizer()
+        self.new_sample(self._optim)
         self._optim.run()
 
         self.population.individuals = self._optim.population
 
         # Set best results
-        best_sol, best_fit, best_idx = self._optim.best_solution()
-        self.best_solution_index = best_idx
-        self.best_fitness = best_fit
+        try:
+            best_sol, best_fit, best_idx = self._optim.best_solution()
+            self.best_solution_index = best_idx
+            self.best_fitness = best_fit
+        except Exception:
+            print('huf?')
 
         self.best_program = self.population.realize(self.best_solution_index)
 

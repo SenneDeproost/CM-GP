@@ -207,26 +207,26 @@ def main(config: ExperimentConfig):
                                                     data.observations.detach().numpy(), env, args)
 
                 cur_program_actions = np.copy(program_actions)
-                print('BEFORE ACTIONS')
-                pprint(program_actions[0:4])
+                #print('BEFORE ACTIONS')
+                #pprint(program_actions[0:4])
 
-                improved_actions, improved_action_deltas = (
-                    critic.improve_actions(cur_program_actions, data.observations.detach().numpy()))
+                #improved_actions, improved_action_deltas = (
+                #    critic.improve_actions(cur_program_actions, data.observations.detach().numpy()))
 
-                print('IMPROVED ACTIONS')
-                pprint(improved_actions[0:4])
+                #print('IMPROVED ACTIONS')
+                #pprint(improved_actions[0:4])
 
                 # Fit the program optimizers on all the action dimensions
                 states = data.observations.detach().numpy()
-                actions = improved_actions
+                #actions = improved_actions
 
                 print('Best program:')
 
                 for action_index in range(n_actions):
                     optimizer = program_optimizers[action_index]
 
-                    actions = actions[:, action_index].reshape(-1, 1)
-                    max_fit, min_fit, mean_fit = optimizer.fit(states, actions)
+                    #improved_actions = improved_actions[:, action_index].reshape(-1, 1)
+                    max_fit, min_fit, mean_fit = optimizer.fit()
                     print(f"a[{action_index}] = {program_optimizers[action_index].best_program}")
                     program_optimizers[action_index] = optimizer
 

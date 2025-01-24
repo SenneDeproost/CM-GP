@@ -103,7 +103,6 @@ class CartesianProgram(Program):
 
         # Go over each set of genes representing a node, front to back
         for i in range(self.config.n_nodes):
-
             # Process
             n_index = i * _genes_per_node
             f_index, start_c_index, stop_c_index = (n_index,
@@ -127,7 +126,7 @@ class CartesianProgram(Program):
             o_index = self.genome.express_gene(idx)
             node = nodes['all'][o_index]
 
-             # Make it an output node
+            # Make it an output node
             node.output = True
             nodes['output'].append(node)
 
