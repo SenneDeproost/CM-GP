@@ -4,6 +4,7 @@ import sys
 from pprint import pprint
 
 import yaml
+from ray.util.client.client_app import actor
 
 sys.path.append('../src/cmgp/')
 sys.path.append('../')
@@ -56,6 +57,27 @@ class QNetwork(nn.Module):
         x = F.relu(self.fc1(x))
         x = self.fc3(x)
         return x
+
+
+class Actor(nn.Module):
+    def __init__(self, env):
+        super().__init__()
+        self.fc1 = nn.Linear(np.array(env.single_observation_space.shape).prod(), 256)
+        self.fc2 = nn.Linear(256, 256)
+        self.fc_mu = nn.Linear(256, np.prod(env.single_action_space.shape))
+        # action rescaling
+        self.register_buffer(
+            "action_scale", torch.tensor((env.action_space.high - env.action_space.low) / 2.0, dtype=torch.float32)
+        )
+        self.register_buffer(
+            "action_bias", torch.tensor((env.action_space.high + env.action_space.low) / 2.0, dtype=torch.float32)
+        )
+
+    def forward(self, x):
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = torch.tanh(self.fc_mu(x))
+        return x * self.action_scale + self.action_bias
 
 
 def get_state_actions(program_optimizers, obs, env, args):
@@ -122,6 +144,10 @@ def main(config: ExperimentConfig):
 
     critic_config = CriticConfig()
     critic = Critic(env, critic_config)
+    actor = Actor(env)
+    target_actor = Actor(env).to(device)
+    target_actor.load_state_dict(actor.state_dict())
+    actor_optimizer = optim.Adam(list(actor.parameters()), lr=args.agent.learning_rate)
 
     # Actor is a learnable program for each action in the action space
     program_optimizers = [PyGADOptimizer(
@@ -149,8 +175,13 @@ def main(config: ExperimentConfig):
             action = env.action_space.sample()
         else:
             with torch.no_grad():
-                action = get_state_actions(program_optimizers, obs[None, :], env, args)[0]
-                action += np.random.normal(loc=action, scale=args.training.agent.policy_noise)
+                # Program
+                action_prog = get_state_actions(program_optimizers, obs[None, :], env, args)[0]
+                action_prog = np.random.normal(loc=action, scale=args.training.agent.policy_noise)
+                # Agent
+                action = actor(torch.Tensor(obs).to(device))
+                action += torch.normal(0, actor.action_scale * args.exploration_noise)
+                action = actions.cpu().numpy().clip(envs.single_action_space.low, envs.single_action_space.high)
 
         # TRY NOT TO MODIFY: execute the game and log data.
         next_obs, reward, termination, truncation, info = env.step(action)

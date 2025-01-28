@@ -101,7 +101,7 @@ class PyGADOptimizer:
             save_solutions=False,
             save_best_solutions=True,
             on_fitness=print_fitness,
-            on_generation=self.new_sample,
+            #on_generation=self.new_sample,
             parallel_processing=1,  # Utilize all available resources
             # Mutation
             mutation_probability=c.gene_mutation_prob,
@@ -122,7 +122,7 @@ class PyGADOptimizer:
         prog = self.population.realize(solution_index)
 
         # Compute program actions
-        prog_actions = np.array([prog(state) for state in self._critic_states]).reshape((-1,1)).astype(np.float32)
+        prog_actions = np.array([prog(state) for state in self._critic_states]).reshape((-1,1))#.astype(np.float32)
 
         # Change large numbers to arbitrary large number
         #prog_actions[prog_actions==torch.inf] = 9e6
@@ -130,20 +130,16 @@ class PyGADOptimizer:
         #print(prog_actions)
 
         if self.buffer is not None:
-            desired_actions, _ = self.critic.improve_actions(prog_actions, self._critic_states)
-            desired_actions = desired_actions.astype(np.float32)
+            desired_actions, deltas = self.critic.improve_actions(prog_actions.astype(np.float32), self._critic_states)
+            #desired_actions = desired_actions.astype(np.float32)
         else:
             desired_actions = self._critic_actions
 
         # MSE
         batch_size = self._critic_states.shape[0]
-        distance = (desired_actions - prog_actions) ** 2
+        distance = abs(desired_actions - prog_actions)
+        #fitness = -(distance.sum())
         fitness = -(distance.sum() / batch_size)
-        #if fitness == -0.0:
-        #    fitness = -1e-10
-
-        #    self.critic.improve_actions(prog_actions, self._critic_states)
-        #    print('')
 
         return fitness
 

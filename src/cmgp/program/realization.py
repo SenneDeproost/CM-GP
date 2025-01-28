@@ -180,6 +180,12 @@ class CartesianProgram(Program):
             r = o.traverse(input, on_operator, on_inputvar, on_float)
             res += r
 
+        # Infinity resolvement
+        #if res == -np.inf:
+        #    res = -9999
+        #elif res == np.inf:
+        #    res = 9999
+
         return res
 
     # Return string representation of program. When input is not given, placeholder names are used
