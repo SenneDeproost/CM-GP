@@ -1,8 +1,19 @@
 # docs and experiment results can be found at https://docs.cleanrl.dev/rl-algorithms/td3/#td3_continuous_actionpy
-import os
+
+
+# docs and experiment results can be found at https://docs.cleanrl.dev/rl-algorithms/td3/#td3_continuous_actionpy
+import sys
+
+import yaml
+
+sys.path.append('../src/cmgp/')
+sys.path.append('../')
+import pyrallis
+
+from config import ExperimentConfig
+
 import random
 import time
-from dataclasses import dataclass
 
 import gymnasium as gym
 import numpy as np
@@ -17,79 +28,26 @@ from critic import Critic
 from config import CriticConfig
 
 import envs
-
-
-@dataclass
-class Args:
-    exp_name: str = os.path.basename(__file__)[: -len(".py")]
-    """the name of this experiment"""
-    seed: int = 1
-    """seed of the experiment"""
-    torch_deterministic: bool = True
-    """if toggled, `torch.backends.cudnn.deterministic=False`"""
-    cuda: bool = False
-    """if toggled, cuda will be enabled by default"""
-    track: bool = False
-    """if toggled, this experiment will be tracked with Weights and Biases"""
-    wandb_project_name: str = "cleanRL"
-    """the wandb's project name"""
-    wandb_entity: str = None
-    """the entity (team) of wandb's project"""
-    capture_video: bool = False
-    """whether to capture videos of the agent performances (check out `videos` folder)"""
-    save_model: bool = False
-    """whether to save model into the `runs/{run_name}` folder"""
-    upload_model: bool = False
-    """whether to upload the saved model to huggingface"""
-    hf_entity: str = ""
-    """the user or org name of the model repository from the Hugging Face Hub"""
-
-    # Algorithm specific arguments
-    env_id: str = "SimpleActionOnly-v0"
-    """the id of the environment"""
-    total_timesteps: int = 600
-    """total timesteps of the experiments"""
-    learning_rate: float = 3e-4
-    """the learning rate of the optimizer"""
-    buffer_size: int = int(1e6)
-    """the replay memory buffer size"""
-    gamma: float = 0.99
-    """the discount factor gamma"""
-    tau: float = 0.005
-    """target smoothing coefficient (default: 0.005)"""
-    batch_size: int = 256
-    """the batch size of sample from the reply memory"""
-    policy_noise: float = 0.2
-    """the scale of policy noise"""
-    exploration_noise: float = 0.1
-    """the scale of exploration noise"""
-    learning_starts: int = 60
-    """timestep to start learning"""
-    policy_frequency: int = 2
-    """the frequency of training policy (delayed)"""
-    noise_clip: float = 0.5
-    """noise clip parameter of the Target Policy Smoothing Regularization"""
+from config import ExperimentConfig
 
 
 def make_env(env_id, seed, idx, capture_video, run_name):
-    def thunk():
-        if capture_video and idx == 0:
-            env = gym.make(env_id, render_mode="rgb_array")
-            env = gym.wrappers.RecordVideo(env, f"videos/{run_name}")
-        else:
-            env = gym.make(env_id)
-        env = gym.wrappers.RecordEpisodeStatistics(env)
-        env.action_space.seed(seed)
-        return env
-
-    return thunk
+    if capture_video and idx == 0:
+        env = gym.make(env_id, render_mode="rgb_array")
+        env = gym.wrappers.RecordVideo(env, f"videos/{run_name}")
+    else:
+        env = gym.make(env_id)
+    env = gym.wrappers.RecordEpisodeStatistics(env)
+    env.action_space.seed(seed)
+    return env
 
 
 # ALGO LOGIC: initialize agent here:
 class QNetwork(nn.Module):
     def __init__(self, env):
         super().__init__()
-        self.fc1 = nn.Linear(np.array(env.single_observation_space.shape).prod() + np.prod(env.single_action_space.shape), 256)
+        self.fc1 = nn.Linear(
+            np.array(env.observation_space.shape).prod() + np.prod(env.action_space.shape), 256)
         self.fc2 = nn.Linear(256, 256)
         self.fc3 = nn.Linear(256, 1)
 
@@ -104,9 +62,9 @@ class QNetwork(nn.Module):
 class Actor(nn.Module):
     def __init__(self, env):
         super().__init__()
-        self.fc1 = nn.Linear(np.array(env.single_observation_space.shape).prod(), 256)
+        self.fc1 = nn.Linear(np.array(env.observation_space.shape).prod(), 256)
         self.fc2 = nn.Linear(256, 256)
-        self.fc_mu = nn.Linear(256, np.prod(env.single_action_space.shape))
+        self.fc_mu = nn.Linear(256, np.prod(env.action_space.shape))
         # action rescaling
         self.register_buffer(
             "action_scale", torch.tensor((env.action_space.high - env.action_space.low) / 2.0, dtype=torch.float32)
@@ -122,25 +80,18 @@ class Actor(nn.Module):
         return x * self.action_scale + self.action_bias
 
 
+def main(config: ExperimentConfig):
+    args = config
 
-if __name__ == "__main__":
-    import stable_baselines3 as sb3
-
-    if sb3.__version__ < "2.0":
-        raise ValueError(
-            """Ongoing migration: run the following command to install the new dependencies:
-poetry run pip install "stable_baselines3==2.0.0a1"
-"""
-        )
-
-    args = tyro.cli(Args)
-    run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
-    if args.track:
+    run_name = f"{args.env_id}__{args.log.run_name}__{args.seed}__{int(time.time())}"
+    if args.log.wandb.track:
         import wandb
 
         wandb.init(
-            project=args.wandb_project_name,
-            entity=args.wandb_entity,
+            project=args.log.wandb.project,
+            entity=args.log.wandb.entity,
+            group=args.log.wandb.group,
+            mode='online',
             sync_tensorboard=True,
             config=vars(args),
             name=run_name,
@@ -157,90 +108,104 @@ poetry run pip install "stable_baselines3==2.0.0a1"
     random.seed(args.seed)
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
-    torch.backends.cudnn.deterministic = args.torch_deterministic
+    torch.backends.cudnn.deterministic = args.deterministic
 
     device = torch.device("cuda" if torch.cuda.is_available() and args.cuda else "cpu")
 
     # env setup
-    envs = gym.vector.SyncVectorEnv([make_env(args.env_id, args.seed, 0, args.capture_video, run_name)])
-    assert isinstance(envs.single_action_space, gym.spaces.Box), "only continuous action space is supported"
+    env = make_env(args.env_id, args.seed, 0, args.log.video, run_name)
+    assert isinstance(env.action_space, gym.spaces.Box), "only continuous action space is supported"
 
-    actor = Actor(envs).to(device)
-    qf1 = QNetwork(envs).to(device)
-    qf2 = QNetwork(envs).to(device)
-    qf1_target = QNetwork(envs).to(device)
-    qf2_target = QNetwork(envs).to(device)
-    target_actor = Actor(envs).to(device)
+    actor = Actor(env).to(device)
+    qf1 = QNetwork(env).to(device)
+    qf2 = QNetwork(env).to(device)
+    qf1_target = QNetwork(env).to(device)
+    qf2_target = QNetwork(env).to(device)
+    target_actor = Actor(env).to(device)
     target_actor.load_state_dict(actor.state_dict())
     qf1_target.load_state_dict(qf1.state_dict())
     qf2_target.load_state_dict(qf2.state_dict())
-    q_optimizer = optim.Adam(list(qf1.parameters()) + list(qf2.parameters()), lr=args.learning_rate)
-    actor_optimizer = optim.Adam(list(actor.parameters()), lr=args.learning_rate)
+    q_optimizer = optim.Adam(list(qf1.parameters()) + list(qf2.parameters()), lr=args.training.agent.learning_rate)
+    actor_optimizer = optim.Adam(list(actor.parameters()), lr=args.training.agent.learning_rate)
 
     critic_config = CriticConfig()
-    critic = Critic(envs, critic_config)
+    critic = Critic(env, critic_config)
 
-    envs.single_observation_space.dtype = np.float32
+    n_actions = env.action_space.shape[0]
+
+    env.observation_space.dtype = np.float32
     rb = ReplayBuffer(
-        args.buffer_size,
-        envs.single_observation_space,
-        envs.single_action_space,
+        args.training.agent.buffer_size,
+        env.observation_space,
+        env.action_space,
         device,
         handle_timeout_termination=False,
     )
     start_time = time.time()
 
     # TRY NOT TO MODIFY: start the game
-    obs, _ = envs.reset(seed=args.seed)
-    for global_step in range(args.total_timesteps):
+    obs, _ = env.reset(seed=args.seed)
+
+    n_environment_interactions = 0
+
+    for global_step in range(args.training.timesteps):
         # ALGO LOGIC: put action logic here
-        if global_step < args.learning_starts:
-            actions = np.array([envs.single_action_space.sample() for _ in range(envs.num_envs)])
+        if global_step < args.training.start_learning:
+            action = env.action_space.sample()
         else:
             with torch.no_grad():
-                actions = actor(torch.Tensor(obs).to(device))
-                actions += torch.normal(0, actor.action_scale * args.exploration_noise)
-                actions = actions.cpu().numpy().clip(envs.single_action_space.low, envs.single_action_space.high)
+                action = actor(torch.Tensor(obs).to(device))
+                action += torch.normal(0, actor.action_scale * args.training.agent.exploration_noise)
+                action = action.cpu().numpy().clip(env.action_space.low, env.action_space.high)
 
         # TRY NOT TO MODIFY: execute the game and log data.
-        next_obs, rewards, terminations, truncations, infos = envs.step(actions)
+        next_obs, reward, termination, truncation, info = env.step(action)
+        n_environment_interactions += 1
 
         # TRY NOT TO MODIFY: record rewards for plotting purposes
-        if "final_info" in infos:
-            for info in infos["final_info"]:
-                print(f"global_step={global_step}, episodic_return={info['episode']['r']}")
-                writer.add_scalar("charts/episodic_return", info["episode"]["r"], global_step)
-                writer.add_scalar("charts/episodic_length", info["episode"]["l"], global_step)
-                break
+        if 'episode' in info:
+            print(f"global_step={global_step}, episodic_return={info['episode']['r']}")
+            writer.add_scalar("policy/episodic_return", info["episode"]["r"], global_step)
+            writer.add_scalar("policy/episodic_length", info["episode"]["l"], global_step)
+            writer.add_scalar("policy/env_interactions", n_environment_interactions, global_step)
+            writer.add_scalar("policy/reward", reward, global_step)
+            writer.add_text('policy/action', str(action), global_step)
 
         # TRY NOT TO MODIFY: save data to reply buffer; handle `final_observation`
         real_next_obs = next_obs.copy()
-        for idx, trunc in enumerate(truncations):
-            if trunc:
-                real_next_obs[idx] = infos["final_observation"][idx]
-        rb.add(obs, real_next_obs, actions, rewards, terminations, infos)
+        rb.add(obs, real_next_obs, action, reward, termination, info)
+
+        # RESET
+        if termination or truncation:
+            next_obs, _ = env.reset()
 
         # TRY NOT TO MODIFY: CRUCIAL step easy to overlook
         obs = next_obs
 
         # ALGO LOGIC: training.
-        if global_step > args.learning_starts:
-            data = rb.sample(args.batch_size)
+        if global_step > args.training.start_learning:
+            data = rb.sample(args.training.agent.critic_batch_size)
             with torch.no_grad():
-                clipped_noise = (torch.randn_like(data.actions, device=device) * args.policy_noise).clamp(
-                    -args.noise_clip, args.noise_clip
+                clipped_noise = (torch.randn_like(data.actions,
+                                                  device=device) * args.training.agent.policy_noise).clamp(
+                    -args.training.agent.noise_clip, args.training.agent.noise_clip
                 ) * target_actor.action_scale
 
-                next_state_actions = (target_actor(data.next_observations) + clipped_noise).clamp(
-                    envs.single_action_space.low[0], envs.single_action_space.high[0]
-                )
-                qf1_next_target = qf1_target(data.next_observations, next_state_actions)
-                qf2_next_target = qf2_target(data.next_observations, next_state_actions)
-                min_qf_next_target = torch.min(qf1_next_target, qf2_next_target)
-                next_q_value = data.rewards.flatten() + (1 - data.dones.flatten()) * args.gamma * (min_qf_next_target).view(-1)
+                next_observations = data.next_observations
 
-            qf1_a_values = qf1(data.observations, data.actions).view(-1)
-            qf2_a_values = qf2(data.observations, data.actions).view(-1)
+                next_state_actions = (target_actor(next_observations) + clipped_noise).clamp(
+                    env.action_space.low[0], env.action_space.high[0]
+                )
+                qf1_next_target = qf1_target(next_observations, next_state_actions)
+                qf2_next_target = qf2_target(next_observations, next_state_actions)
+                min_qf_next_target = torch.min(qf1_next_target, qf2_next_target)
+                next_q_value = data.rewards.flatten() + (1 - data.dones.flatten()) * args.training.critic.gamma * (
+                    min_qf_next_target).view(-1)
+
+            observations = data.observations
+
+            qf1_a_values = qf1(observations, data.actions).view(-1)
+            qf2_a_values = qf2(observations, data.actions).view(-1)
             qf1_loss = F.mse_loss(qf1_a_values, next_q_value)
             qf2_loss = F.mse_loss(qf2_a_values, next_q_value)
             qf_loss = qf1_loss + qf2_loss
@@ -250,19 +215,22 @@ poetry run pip install "stable_baselines3==2.0.0a1"
             qf_loss.backward()
             q_optimizer.step()
 
-            if global_step % args.policy_frequency == 0:
-                actor_loss = -qf1(data.observations, actor(data.observations)).mean()
+            if global_step % args.training.policy_update == 0:
+                actor_loss = -qf1(observations, actor(observations)).mean()
                 actor_optimizer.zero_grad()
                 actor_loss.backward()
                 actor_optimizer.step()
 
                 # update the target network
                 for param, target_param in zip(actor.parameters(), target_actor.parameters()):
-                    target_param.data.copy_(args.tau * param.data + (1 - args.tau) * target_param.data)
+                    target_param.data.copy_(
+                        args.training.agent.tau * param.data + (1 - args.training.agent.tau) * target_param.data)
                 for param, target_param in zip(qf1.parameters(), qf1_target.parameters()):
-                    target_param.data.copy_(args.tau * param.data + (1 - args.tau) * target_param.data)
+                    target_param.data.copy_(
+                        args.training.critic.tau * param.data + (1 - args.training.critic.tau) * target_param.data)
                 for param, target_param in zip(qf2.parameters(), qf2_target.parameters()):
-                    target_param.data.copy_(args.tau * param.data + (1 - args.tau) * target_param.data)
+                    target_param.data.copy_(
+                        args.training.critic.tau * param.data + (1 - args.training.critic.tau) * target_param.data)
 
             if global_step % 100 == 0:
                 writer.add_scalar("losses/qf1_values", qf1_a_values.mean().item(), global_step)
@@ -274,31 +242,17 @@ poetry run pip install "stable_baselines3==2.0.0a1"
                 print("SPS:", int(global_step / (time.time() - start_time)))
                 writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
 
-    if args.save_model:
-        model_path = f"runs/{run_name}/{args.exp_name}.cleanrl_model"
-        torch.save((actor.state_dict(), qf1.state_dict(), qf2.state_dict()), model_path)
-        print(f"model saved to {model_path}")
-        from td3_eval import evaluate
-
-        episodic_returns = evaluate(
-            model_path,
-            make_env,
-            args.env_id,
-            eval_episodes=10,
-            run_name=f"{run_name}-eval",
-            Model=(Actor, QNetwork),
-            device=device,
-            exploration_noise=args.exploration_noise,
-        )
-        for idx, episodic_return in enumerate(episodic_returns):
-            writer.add_scalar("eval/episodic_return", episodic_return, idx)
-
-        if args.upload_model:
-            from cleanrl_utils.huggingface import push_to_hub
-
-            repo_name = f"{args.env_id}-{args.exp_name}-seed{args.seed}"
-            repo_id = f"{args.hf_entity}/{repo_name}" if args.hf_entity else repo_name
-            push_to_hub(args, episodic_returns, repo_id, "TD3", f"runs/{run_name}", f"videos/{run_name}-eval")
-
-    envs.close()
+    env.close()
     writer.close()
+
+
+if __name__ == "__main__":
+    args = tyro.cli(ExperimentConfig)
+
+    if args.config_file is not None:
+        c = ExperimentConfig
+        with open(args.config_file, 'r') as f:
+            data = yaml.load(f, Loader=yaml.SafeLoader)
+            pyrallis.load(c, f)
+
+    main(args)

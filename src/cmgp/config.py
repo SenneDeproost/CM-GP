@@ -76,15 +76,15 @@ class OptimizerConfig:
     # Number of individuals in population
     n_individuals: int = field(default=100)
     # Number of generations
-    n_generations: int = field(default=3)
+    n_generations: int = field(default=10)
     # Number of parents mating
-    n_parents_mating: int = field(default=50)
+    n_parents_mating: int = field(default=80)
     # Probability of gene mutation
-    gene_mutation_prob: float = field(default=0.01) # 0.1
+    gene_mutation_prob: float = field(default=0.05) # 0.1
     # Percentage of genes to mutate (no effect if gene_mutation_prob is given)
     #gene_mutation_percent: float = field(default=10.0)
     # How many elites to keep
-    elitism: int = field(default=0) # High enough!
+    elitism: int = field(default=3) # High enough!
     # Type of mutation
     mutation: str = field(default='random')
     # Range of mutation values
@@ -116,9 +116,11 @@ class AgentConfig:
     # Batch size of sample from replay memory for critic
     critic_batch_size: int = field(default=256) # 256
     # Batch size of sample from replay memory for actor
-    actor_batch_size: int = field(default=100)  # 256 # Was a mistake, nonactive
+    actor_batch_size: int = field(default=1000)  # 256 # Was a mistake, nonactive
     # Scale of the policy noise
-    policy_noise: float = field(default=0.1) # 0.1
+    exploration_noise: float = field(default=0.1) # 0.1
+    # Policy noise
+    policy_noise: float = field(default=0.1)
     # Noise clip of the Target Policy Smoothing Regularization
     noise_clip: float = field(default=0.5)
 
@@ -130,15 +132,13 @@ class CriticConfig:
     learning_rate: float = field(default=3e-4)
     # Noise
     noise_clip: float = field(default=0.5)
-    # Policy noise
-    policy_noise: float = field(default=0.1)
     # Target smoothing coefficient
     tau: float = field(default=0.005)
     # Discount factor
     gamma: float = field(default=0.99)
 
     # Amount of update iterations
-    gradient_updates: int = field(default=100) # 100
+    gradient_updates: int = field(default=10) # 100
     # Gradient update threshold
     update_threshold: float = field(default=1)
     # Rate of update the gradient is applied
@@ -156,12 +156,12 @@ class TrainingConfig:
     critic: CriticConfig = field(default=CriticConfig)
 
     # Amount of time steps to learn
-    timesteps: int = field(default=500_000)
+    timesteps: int = field(default=60_000)
 
     # Timestep to start learning
-    start_learning: int = field(default=10)
+    start_learning: int = field(default=25e3)
     # Frequency of training the policy
-    policy_update: int = field(default=100) #5 # Not too high!
+    policy_update: int = field(default=3) #5 # Not too high!
 
 
 @dataclass

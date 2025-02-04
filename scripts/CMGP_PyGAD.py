@@ -150,7 +150,8 @@ def main(config: ExperimentConfig):
         else:
             with torch.no_grad():
                 action = get_state_actions(program_optimizers, obs[None, :], env, args)[0]
-                action += np.random.normal(loc=action, scale=args.training.agent.policy_noise)
+                action += np.random.normal(loc=action, scale=args.training.agent.exploration_noise)
+                action = action.clip(env.action_space.low, env.action_space.high)
 
         # TRY NOT TO MODIFY: execute the game and log data.
         next_obs, reward, termination, truncation, info = env.step(action)
