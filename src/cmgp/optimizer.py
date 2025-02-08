@@ -35,7 +35,8 @@ class PyGADOptimizer:
                  state_space: gym.Space,
                  buffer: ReplayBuffer = None,
                  critic: Critic = None,
-                 buffer_batch_size: int = None) -> None:
+                 buffer_batch_size: int = None,
+                 action_space: gym.spaces.Box = None) -> None:
         self.config = config
         self.state_space = state_space
         self.operators_dict = operators_dict
@@ -55,6 +56,8 @@ class PyGADOptimizer:
         self.best_solution_index = 0
         self.best_fitness = -np.inf
         self.best_program = self.population.realize(self.best_solution_index)
+
+        self.action_space = action_space
 
         self._critic_states, self._critic_actions = None, None
 
@@ -117,12 +120,14 @@ class PyGADOptimizer:
 
         return instance
 
-    def fitness_function(self, _, solution, solution_index) -> float:
+    def fitness_function_old(self, _, solution, solution_index) -> float:
         # Update population and realize at index
         prog = self.population.realize(solution_index)
 
         # Compute program actions
         prog_actions = np.array([prog(state) for state in self._critic_states]).reshape((-1,1))#.astype(np.float32)
+        if self.action_space is not None:
+            prog_actions = prog_actions.clip(self.action_space.low, self.action_space.high)
 
         # Change large numbers to arbitrary large number
         #prog_actions[prog_actions==torch.inf] = 9e6
@@ -140,6 +145,50 @@ class PyGADOptimizer:
         distance = abs(desired_actions - prog_actions)
         #fitness = -(distance.sum())
         fitness = -(distance.sum() / batch_size)
+
+        return fitness
+
+    def fitness_function(self, _, solution, solution_index) -> float:
+        # Update population and realize at index
+        prog = self.population.realize(solution_index)
+
+        # Compute program actions
+        prog_actions = np.array([prog(state) for state in self._critic_states]).reshape((-1,1))#.astype(np.float32)
+
+        if self.action_space is not None:
+            prog_actions = prog_actions.clip(self.action_space.low, self.action_space.high)
+
+        # Change large numbers to arbitrary large number
+        #prog_actions[prog_actions==torch.inf] = 9e6
+
+        #print(prog_actions)
+
+        #if self.buffer is not None:
+        #    desired_actions, deltas = self.critic.improve_actions(prog_actions.astype(np.float32), self._critic_states)
+        #    #desired_actions = desired_actions.astype(np.float32)
+        #else:
+        #    desired_actions = self._critic_actions
+
+        actions = torch.from_numpy(prog_actions).float()
+        states = torch.from_numpy(self._critic_states).float()
+        q_values = self.critic.model(actions, states)
+        self.critic.model.zero_grad()
+        #q_values = np.array([prog(state) for state in self._critic_states]).reshape((-1,1))
+
+        # MSE
+        batch_size = self._critic_states.shape[0]
+        #distance = sum(q_values)/batch_size
+        #fitness = -(distance.sum())
+        #fitness = -(distance.sum() / batch_size)
+        fitness = float(q_values.mean().detach().numpy())
+        #print(fitness)
+        #print(np.isnan(fitness))
+        if np.isnan(fitness):
+            fitness = -99999
+
+        if fitness > 1000:
+            fitness = -99999
+
 
         return fitness
 

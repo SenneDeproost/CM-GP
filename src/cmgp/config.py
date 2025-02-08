@@ -57,7 +57,7 @@ class CartesianConfig:
     # Name of representation
     representation: str = 'Cartesian'
     # Number of nodes in Cartesian graph
-    n_nodes: int = field(default=10)
+    n_nodes: int = field(default=20)
     # Number maximum arity over the set of operators
     max_node_arity: int = field(default=4)
     # Highest number for constant
@@ -76,7 +76,7 @@ class OptimizerConfig:
     # Number of individuals in population
     n_individuals: int = field(default=100)
     # Number of generations
-    n_generations: int = field(default=10)
+    n_generations: int = field(default=50)
     # Number of parents mating
     n_parents_mating: int = field(default=80)
     # Probability of gene mutation
@@ -84,11 +84,11 @@ class OptimizerConfig:
     # Percentage of genes to mutate (no effect if gene_mutation_prob is given)
     #gene_mutation_percent: float = field(default=10.0)
     # How many elites to keep
-    elitism: int = field(default=3) # High enough!
+    elitism: int = field(default=0) # High enough!
     # Type of mutation
     mutation: str = field(default='random')
     # Range of mutation values
-    mutation_val: tuple[float, float] = field(default=(-20.0, 1.0)) # Bigger positive == higher chance constant
+    mutation_val: tuple[float, float] = field(default=(-20.0, 20.0)) # ! Important check to perform
     # Type of crossover
     crossover: str = field(default='single_point')
     # Type of parent selection
@@ -138,7 +138,7 @@ class CriticConfig:
     gamma: float = field(default=0.99)
 
     # Amount of update iterations
-    gradient_updates: int = field(default=10) # 100
+    gradient_updates: int = field(default=1) # 100
     # Gradient update threshold
     update_threshold: float = field(default=1)
     # Rate of update the gradient is applied
@@ -156,7 +156,7 @@ class TrainingConfig:
     critic: CriticConfig = field(default=CriticConfig)
 
     # Amount of time steps to learn
-    timesteps: int = field(default=60_000)
+    timesteps: int = field(default=600_000)
 
     # Timestep to start learning
     start_learning: int = field(default=25e3)

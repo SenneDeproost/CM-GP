@@ -162,6 +162,7 @@ def main(config: ExperimentConfig):
         env.observation_space,
         critic=critic_1,
         buffer=rb,
+        action_space=env.action_space,
         buffer_batch_size=args.training.agent.actor_batch_size) for _ in range(n_actions)]
 
     #for action_index in range(env.action_space.shape[0]):
@@ -268,9 +269,9 @@ def main(config: ExperimentConfig):
                 critic_2.update_target()
 
                 # Optimize the program
-            if global_step % 10000 == 0:
+            if global_step % 5000 == 0:
                 # New sampling
-                data = rb.sample(args.training.agent.actor_batch_size) # Was a mistake
+                #data = rb.sample(args.training.agent.actor_batch_size) # Was a mistake
 
                 #program_actions = get_state_actions(program_optimizers,
                 #                                    data.observations.detach().numpy(), env, args)
@@ -279,11 +280,10 @@ def main(config: ExperimentConfig):
                 #print('BEFORE ACTIONS')
                 #pprint(program_actions[0:4])
 
-                # Replay buffer already given tot he critic abstraction
+                # Replay buffer already given to the critic abstraction
 
                 #improved_actions, improved_action_deltas = (
                 #    critic_1.improve_actions(program_actions, data.observations.detach().numpy()))
-
 
                 for action_index in range(n_actions):
                     optimizer = program_optimizers[action_index]
@@ -299,17 +299,16 @@ def main(config: ExperimentConfig):
                 r = 0
 
                 while not termination or not truncation:
-                    action = get_state_actions(program_optimizers, obs[None, :], env, args)[0]
+                    action = get_state_actions(program_optimizers, [obs], env, args)[0]
+                    #print(action)
                     action = action.clip(env.action_space.low, env.action_space.high)
-                    next_obs, reward, termination, truncation, info = env.step(action)
+                    obs, reward, termination, truncation, info = env.step(action)
                     r += reward
                     if termination or truncation:
+                        env.reset()
                         break
 
                 print(f'Validation episodic return={r}')
-
-
-
 
                 #print('IMPROVED ACTIONS')
                 #pprint(improved_actions[0:4])

@@ -1,9 +1,13 @@
+import sys
+sys.path.append('../src/cmgp/')
+sys.path.append('../')
+
+
 import random
 import time
 from copy import copy
 from dataclasses import dataclass
 import pyrallis
-
 import gymnasium as gym
 import numpy as np
 import torch
@@ -36,18 +40,21 @@ class CustomOptimizer(PyGADOptimizer):
 
     # New fit function
     def fitness_function(self, _, solution, solution_index) -> float:
+
+        env = copy(self.env)
+
         fitness = 0.0
 
         prog = self.population.realize(solution_index)
 
-        obs, _ = self.env.reset()
+        obs, _ = env.reset()
 
         terminated, truncated = False, False
 
         while not terminated or not truncated:
 
             action = prog(obs)
-            next_obs, reward, terminated, truncated, info = self.env.step([action])
+            next_obs, reward, terminated, truncated, info = env.step([action])
 
             fitness += reward
             obs = next_obs
@@ -55,19 +62,20 @@ class CustomOptimizer(PyGADOptimizer):
 
             if terminated or truncated:
                 break
+
         return fitness
 
     def fit(self) -> None:
 
-        self._optim.initial_population = self.raw_population  #self.population.raw_genes()
+        self._optim.initial_population = self.population.individuals  #self.population.raw_genes()
 
         # Iterate with optimizer
-        self._optim = self._init_optimizer()
-        self.reset_solutions()
+        #self._optim = self._init_optimizer() # Dp not re-init optimizer
+        #self.reset_solutions()
         self._optim.run()
 
-        self.raw_population = self._optim.population
-        self.population.update(self._optim.population)
+        #self.raw_population = self._optim.population
+        self.population.individuals = self._optim.population
 
         # Set best results
         best_sol, best_fit, best_idx = self._optim.best_solution()
@@ -174,8 +182,8 @@ if __name__ == "__main__":
     #        pyrallis.load(c, f)
 
     c = ExperimentConfig()
-    c.env_id = 'InvertedPendulum-v4'
-    c.training.optimizer.n_generations = 1000
+    #c.env_id = 'InvertedPendulum-v4'
+    #c.training.optimizer.n_generations = 50
 
     #args = tyro.cli(c)
 
