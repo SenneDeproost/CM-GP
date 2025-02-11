@@ -1,3 +1,0 @@
-[submodule "src/cmgp/per"]
-	path = src/cmgp/per
-	url = https://github.com/Damcy/prioritized-experience-replay.git
