@@ -285,13 +285,17 @@ def main(config: ExperimentConfig):
                 #improved_actions, improved_action_deltas = (
                 #    critic_1.improve_actions(program_actions, data.observations.detach().numpy()))
 
+                best_programs = []
+
                 for action_index in range(n_actions):
                     optimizer = program_optimizers[action_index]
+                    optimizer.env = env
 
                     #improved_actions = improved_actions[:, action_index].reshape(-1, 1)
                     max_fit, min_fit, mean_fit = optimizer.fit()
                     print(f"a[{action_index}] = {program_optimizers[action_index].best_program}")
                     program_optimizers[action_index] = optimizer
+                    best_programs.append(optimizer.best_program)
 
                 # Do validation episode
                 obs, _ = env.reset()
@@ -299,8 +303,11 @@ def main(config: ExperimentConfig):
                 r = 0
 
                 while not termination or not truncation:
-                    action = get_state_actions(program_optimizers, [obs], env, args)[0]
+                    #action = get_state_actions(program_optimizers, [obs], env, args)[0]
+                    prog = best_programs[0]
+                    #action = np.array([prog(state) for state in obs]).reshape((-1, 1)) # Needs to be chenged for other environments !
                     #print(action)
+                    action = np.array([prog(obs)])
                     action = action.clip(env.action_space.low, env.action_space.high)
                     obs, reward, termination, truncation, info = env.step(action)
                     r += reward
@@ -308,7 +315,7 @@ def main(config: ExperimentConfig):
                         env.reset()
                         break
 
-                print(f'Validation episodic return={r}')
+                print(f'Validation episodic return = {r}')
 
                 #print('IMPROVED ACTIONS')
                 #pprint(improved_actions[0:4])

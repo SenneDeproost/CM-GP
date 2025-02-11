@@ -57,7 +57,7 @@ class CartesianConfig:
     # Name of representation
     representation: str = 'Cartesian'
     # Number of nodes in Cartesian graph
-    n_nodes: int = field(default=20)
+    n_nodes: int = field(default=8)
     # Number maximum arity over the set of operators
     max_node_arity: int = field(default=4)
     # Highest number for constant
@@ -76,11 +76,11 @@ class OptimizerConfig:
     # Number of individuals in population
     n_individuals: int = field(default=100)
     # Number of generations
-    n_generations: int = field(default=50)
+    n_generations: int = field(default=500)
     # Number of parents mating
     n_parents_mating: int = field(default=80)
     # Probability of gene mutation
-    gene_mutation_prob: float = field(default=0.05) # 0.1
+    gene_mutation_prob: float = field(default=0.1) # 0.05
     # Percentage of genes to mutate (no effect if gene_mutation_prob is given)
     #gene_mutation_percent: float = field(default=10.0)
     # How many elites to keep
@@ -106,7 +106,7 @@ class AgentConfig:
     """Configuration for the Reinforcement Learning Agent"""
 
     # Size of replay buffer
-    buffer_size: int = field(default=int(1e6))
+    buffer_size: int = field(default=int(1e5)) # int(1e5)
     # Learning rate of network optimizer
     learning_rate: float = field(default=3e-4)
     # Discount factor
@@ -116,7 +116,7 @@ class AgentConfig:
     # Batch size of sample from replay memory for critic
     critic_batch_size: int = field(default=256) # 256
     # Batch size of sample from replay memory for actor
-    actor_batch_size: int = field(default=1000)  # 256 # Was a mistake, nonactive
+    actor_batch_size: int = field(default=100)  # 256 # Was a mistake, nonactive
     # Scale of the policy noise
     exploration_noise: float = field(default=0.1) # 0.1
     # Policy noise

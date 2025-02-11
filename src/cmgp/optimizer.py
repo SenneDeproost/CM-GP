@@ -64,6 +64,8 @@ class PyGADOptimizer:
         # Optimizer instance
         self._optim = self._init_optimizer()
 
+        self.env = None
+
     # Dunder for preventing certain methods to be pickled (issue with pickling lambda operators)
     #def __getstate__(self):
     #    state = self.__dict__.copy()
@@ -104,7 +106,7 @@ class PyGADOptimizer:
             save_solutions=False,
             save_best_solutions=True,
             on_fitness=print_fitness,
-            #on_generation=self.new_sample,
+            on_generation=self.new_sample,
             parallel_processing=1,  # Utilize all available resources
             # Mutation
             mutation_probability=c.gene_mutation_prob,
@@ -149,6 +151,32 @@ class PyGADOptimizer:
         return fitness
 
     def fitness_function(self, _, solution, solution_index) -> float:
+
+        env = copy(self.env)
+
+        fitness = 0.0
+
+        prog = self.population.realize(solution_index)
+
+        obs, _ = env.reset()
+
+        terminated, truncated = False, False
+
+        while not terminated or not truncated:
+
+            action = prog(obs)
+            next_obs, reward, terminated, truncated, info = env.step([action])
+
+            fitness += reward
+            obs = next_obs
+            #self.interactions += 1
+
+            if terminated or truncated:
+                break
+
+        return fitness
+
+    def fitness_function1(self, _, solution, solution_index) -> float:
         # Update population and realize at index
         prog = self.population.realize(solution_index)
 
@@ -183,11 +211,11 @@ class PyGADOptimizer:
         fitness = float(q_values.mean().detach().numpy())
         #print(fitness)
         #print(np.isnan(fitness))
-        if np.isnan(fitness):
-            fitness = -99999
+        #if np.isnan(fitness):
+        #    fitness = -99999
 
-        if fitness > 1000:
-            fitness = -99999
+        #if fitness > 1000:
+        #    fitness = -99999
 
 
         return fitness
@@ -248,14 +276,14 @@ class PyGADOptimizer:
         self.population.individuals = self._optim.population
 
         # Set best results
-        try:
-            best_sol, best_fit, best_idx = self._optim.best_solution()
-            self.best_solution_index = best_idx
-            self.best_fitness = best_fit
-        except Exception:
-            print('huf?')
+        best_sol, best_fit, best_idx = self._optim.best_solution()
+        self.best_solution_index = best_idx
+        self.best_fitness = best_fit
 
         self.best_program = self.population.realize(self.best_solution_index)
+
+        print(f'Optimizer says: best program is {self.best_program}')
+        print(f'Optimizer says: best fitness is {self.best_fitness}')
 
         return (self._optim.last_generation_fitness.max(),
                 self._optim.last_generation_fitness.min(),
