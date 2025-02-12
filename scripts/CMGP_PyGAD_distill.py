@@ -22,6 +22,7 @@ import torch.optim as optim
 import tyro
 
 from stable_baselines3.common.buffers import ReplayBuffer
+from cleanrl.cleanrl_utils.buffers import PrioritizedReplayBuffer
 from torch.utils.tensorboard import SummaryWriter
 from torch.autograd import grad
 
@@ -136,12 +137,21 @@ def main(config: ExperimentConfig):
     n_actions = env.action_space.shape[0]
 
     env.observation_space.dtype = np.float32
-    rb = ReplayBuffer(
+    rb_old = ReplayBuffer(
         args.training.agent.buffer_size,
         env.observation_space,
         env.action_space,
         device,
         handle_timeout_termination=False,
+    )
+
+    rb = PrioritizedReplayBuffer(
+        buffer_size=args.training.agent.buffer_size,
+        alpha=1,
+        observation_space=env.observation_space,
+        action_space=env.action_space,
+        device=device,
+        n_envs=1
     )
 
     critic_config = CriticConfig()
@@ -207,7 +217,7 @@ def main(config: ExperimentConfig):
 
         # TRY NOT TO MODIFY: save data to reply buffer; handle `final_observation`
         real_next_obs = next_obs.copy()
-        rb.add(obs, real_next_obs, action, reward, termination, info)
+        rb.add(obs, real_next_obs, action, reward, termination)
 
         # RESET
         if termination or truncation:
@@ -218,7 +228,7 @@ def main(config: ExperimentConfig):
 
         # ALGO LOGIC: training.
         if global_step > args.training.start_learning:
-            data = rb.sample(args.training.agent.critic_batch_size)
+            data = rb.sample(args.training.agent.critic_batch_size, beta=0.5)
             with torch.no_grad():
                 clipped_noise = (torch.randn_like(
                     data.actions, device=device) * args.training.agent.policy_noise).clamp(
@@ -269,7 +279,7 @@ def main(config: ExperimentConfig):
                 critic_2.update_target()
 
                 # Optimize the program
-            if global_step % 5000 == 0:
+            if global_step % 1000 == 0:
                 # New sampling
                 #data = rb.sample(args.training.agent.actor_batch_size) # Was a mistake
 

@@ -12,6 +12,7 @@ import pygad
 import numpy as np
 from rich.box import SIMPLE
 from stable_baselines3.common.buffers import ReplayBuffer
+from torch.distributed.rpc import new_method
 
 import test
 from population import CartesianPopulation
@@ -24,7 +25,8 @@ from program.realization import Program, CartesianProgram
 
 
 def print_fitness(ga, fitnesses):
-    print(f'F_best: {fitnesses.max()}, F_worst: {fitnesses.min()}  F_mean: {fitnesses.mean()}', file=sys.stderr)
+    #print(f'F_best: {fitnesses.max()}, F_worst: {fitnesses.min()}  F_mean: {fitnesses.mean()}', file=sys.stderr)
+    pass
 
 
 # Todo: Generic class, not fixed to CGP
@@ -86,11 +88,15 @@ class PyGADOptimizer:
         return population
 
     # on_generation function to sample new experiences from buffer
-    def new_sample(self, ga) -> None:
+    def new_sample(self) -> None:
         # Check if buffer is given in the optimizer
         if self.buffer is not None:
-            self._critic_states = self.buffer.sample(self.buffer_batch_size).observations.detach().numpy().astype(np.float32)
+            self._critic_states = self.buffer.sample(self.buffer_batch_size, beta=0.5).observations.detach().numpy().astype(np.float32)
 
+    def on_generation(self, ga) -> None:
+        self.new_sample()
+        fit = ga.last_generation_fitness
+        print(f'F_best: {fit.max()}, F_worst: {fit.min()}  F_mean: {fit.mean()}', file=sys.stderr)
 
     # Initialize PyGAD optimizer
     def _init_optimizer(self) -> pygad.GA:
@@ -106,7 +112,7 @@ class PyGADOptimizer:
             save_solutions=False,
             save_best_solutions=True,
             on_fitness=print_fitness,
-            on_generation=self.new_sample,
+            on_generation=self.on_generation,
             parallel_processing=1,  # Utilize all available resources
             # Mutation
             mutation_probability=c.gene_mutation_prob,
@@ -241,7 +247,7 @@ class PyGADOptimizer:
         optim.solutions_fitness = []
 
         # A list holding the fitness values of all solutions in the last generation.
-        optim.last_generation_fitness = None
+        #optim.last_generation_fitness = None
         # A list holding the parents of the last generation.
         optim.last_generation_parents = None
         # A list holding the offspring after applying crossover in the last generation.
@@ -268,15 +274,15 @@ class PyGADOptimizer:
         self._critic_actions = critic_actions
 
         # Iterate with optimizer
-        self.reset_solutions()   #!!!!!
+        #self.reset_solutions()   #!!!!!
         #self._optim = self._init_optimizer()
-        self.new_sample(self._optim)
+        self.new_sample()
         self._optim.run()
 
         self.population.individuals = self._optim.population
 
         # Set best results
-        best_sol, best_fit, best_idx = self._optim.best_solution()
+        best_sol, best_fit, best_idx = self._optim.best_solution(pop_fitness=self._optim.last_generation_fitness) # Recalculates using new interaction
         self.best_solution_index = best_idx
         self.best_fitness = best_fit
 
