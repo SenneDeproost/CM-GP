@@ -1,3 +1,0 @@
-[submodule "src/cmgp/cleanrl"]
-	path = src/cmgp/cleanrl
-	url = https://github.com/vwxyzjn/cleanrl.git
