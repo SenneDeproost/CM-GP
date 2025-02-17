@@ -27,6 +27,8 @@ def test_random_program_from_population():
         prog = CartesianProgram(genome, space, SIMPLE_OPERATORS, c.program)
         print(prog)
         print(prog.evaluate(i))
+        [print(sub) for sub in pop.realize_subs(idx)]
+
 
     # Small
     space = test.SMALL_OBS_SPACE
@@ -46,6 +48,7 @@ def test_random_program_from_population():
         prog = CartesianProgram(genome, space, SIMPLE_OPERATORS, c.program)
         print(prog)
         print(prog.evaluate(i))
+        [print(sub) for sub in pop.realize_subs(idx)]
 
     # Small with 2 outputs
     space = test.SMALL_OBS_SPACE
@@ -65,3 +68,4 @@ def test_random_program_from_population():
         prog = CartesianProgram(genome, space, SIMPLE_OPERATORS, c.program)
         print(prog)
         print(prog.evaluate(i))
+        #[print(sub) for sub in pop.realize_subs(idx)]

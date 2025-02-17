@@ -70,7 +70,7 @@ class CustomOptimizer(PyGADOptimizer):
         self._optim.initial_population = self.population.individuals  #self.population.raw_genes()
 
         # Iterate with optimizer
-        #self._optim = self._init_optimizer() # Dp not re-init optimizer
+        self._optim = self._init_optimizer()
         #self.reset_solutions()
         self._optim.run()
 
@@ -78,11 +78,14 @@ class CustomOptimizer(PyGADOptimizer):
         self.population.individuals = self._optim.population
 
         # Set best results
-        best_sol, best_fit, best_idx = self._optim.best_solution()
+        best_sol, best_fit, best_idx = self._optim.best_solution(pop_fitness=self._optim.last_generation_fitness)  # Recalculates using new interaction
         self.best_solution_index = best_idx
         self.best_fitness = best_fit
         self.best_program = self.population.realize(self.best_solution_index)
         print(f'N_interactions: {self.interactions}')
+
+        print(f'Optimizer says: best program is {self.best_program}')
+        print(f'Optimizer says: best fitness is {self.best_fitness}')
 
 
 def make_env(env_id, seed, idx, capture_video, run_name):

@@ -79,10 +79,14 @@ class Critic:
         # Iterate several times over the actions to improve them
         for i in range(self.config.gradient_updates):
 
+            # Reset gradients
+            self.model.zero_grad()
+
+            # Make predictions and retrieve gradients
             a = torch.tensor(res_actions, requires_grad=True)
             prediction = self.model(states, a)
             prediction.mean().backward()
-            g = a.grad
+            g = a.grad # Gradient of the action towards loss min, which is towards Q max
 
             # Stop if gradient threshold is met
             # Todo: check if abs is needed inner

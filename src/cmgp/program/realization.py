@@ -13,7 +13,7 @@ import test
 from numpy import ndarray
 
 from config import CartesianConfig
-from population import Genome, OperatorGeneSpace, generate_cartesian_genome_space, genes_per_node, EMPTY
+from population import *
 from program import Operator, InputVar, SIMPLE_OPERATORS, SIMPLE_OPERATORS_DICT
 
 
@@ -68,6 +68,23 @@ def SumString(x: list[str]) -> str:
     for x in x[1:]:
         res += f', {x}'
     return f'{res} ]'
+
+# Realize program from array
+def realize_from_array(genes: np.array,
+                       genome_space: List[GeneSpace],
+                       config: CartesianConfig,
+                       state_space: gym.Space,
+                       operators: dict = SIMPLE_OPERATORS_DICT,
+                       ) -> Program:
+    genome = Genome(genes=genes, genome_space=genome_space)
+    realization = CartesianProgram(
+        genome=genome,
+        input_space=state_space,
+        operators=operators,
+        config=config
+    )
+    return realization
+
 
 
 # Cartesian graph based program:

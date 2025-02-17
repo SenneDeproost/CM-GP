@@ -4,6 +4,7 @@
 #
 # 27/11/2024 - Senne Deproost & Denis Steckelmacher
 from collections import OrderedDict
+from copy import copy
 from typing import List, Callable, Union, Counter
 import numpy as np
 from sympy.polys.polyoptions import Order
@@ -13,6 +14,8 @@ from config import CartesianConfig, OptimizerConfig
 import gymnasium as gym
 
 from program import Operator, InputVar, SIMPLE_OPERATORS_DICT, SIMPLE_OPERATORS
+
+#from src.cmgp.program.realization import CartesianProgram
 
 EMPTY = -1
 
@@ -472,21 +475,31 @@ class CartesianPopulation(Population):
             res.append(self.realize(i))
         return res
 
+    # Realize all subprograms of an individual as if they are single output programs
+    def realize_subs(self, index: int):
+        from program.realization import CartesianProgram
+        res = []
+        genome = self.individuals[index]
+        for i in range(self.config.n_nodes):
+            g = copy(genome)
+            # Set output gene to index in the loop
+            g[-self.config.n_outputs] = i # Todo better soloution for programs with multiple inputs
+            g = Genome(genes=g, genome_space=self.genome_space, pop_index=index)
+            realization = CartesianProgram(
+                genome=g,
+                input_space=self.state_space,
+                operators=self.operators,
+                config=self.config
+            )
+            res.append(realization)
+        return res
+
     # Get range description for PyGad optimizer
     def range_description(self) -> List[dict]:
         res = []
         for gene in self.genome_space:
             res.append(gene.gene_range.description())
         return res
-
-    # Updates genes of individual at index
-    #def update(self, index: int, new_genes: np.ndarray[float]) -> None:
-    #    self.individuals[index] = new_genes
-
-    # Update all genes of the population
-    #def update_all(self, new_population: np.ndarray[float]) -> None:
-    #    for i, genome in enumerate(self.individuals):
-    #        self.individuals[i] = new_population[i]
 
     # Generate random program from population
     def random_program(self):

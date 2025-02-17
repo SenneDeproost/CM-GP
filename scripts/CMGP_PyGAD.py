@@ -127,7 +127,8 @@ def main(config: ExperimentConfig):
     program_optimizers = [PyGADOptimizer(
         args.training.optimizer,
         SIMPLE_OPERATORS_DICT,  # Todo: change!
-        env.observation_space,
+        observation_space=env.observation_space,
+        action_space=env.action_space,
         critic=critic,
         buffer=rb,
         buffer_batch_size=args.training.agent.actor_batch_size) for _ in range(n_actions)]
