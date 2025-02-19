@@ -22,7 +22,7 @@ from config import *
 import gymnasium as gym
 
 from program.realization import Program, CartesianProgram
-from program.realization import realize_from_array
+from program.realization import realize_from_array, realize_subs_from_array
 
 
 def print_fitness(ga, fitnesses):
@@ -39,9 +39,12 @@ class PyGADOptimizer:
                  buffer: ReplayBuffer = None,
                  critic: Critic = None,
                  buffer_batch_size: int = None,
-                 action_space: gym.spaces.Box = None) -> None:
+                 action_space: gym.spaces.Box = None,
+                 env = None) -> None:
+        self.interactions = 0
         self.config = config
         self.observation_space = observation_space
+        self.env = env
         self.operators_dict = operators_dict
         self.operators = [x for y in self.operators_dict.values() for x in y]
 
@@ -60,6 +63,7 @@ class PyGADOptimizer:
         self.best_fitness = -np.inf
         self.best_solution = self.population[self.best_index]
         self.best_program = self.population.realize(self.best_index)
+        self.best_programs = []
 
         self.action_space = action_space
 
@@ -67,8 +71,6 @@ class PyGADOptimizer:
 
         # Optimizer instance
         self._optim = self._init_optimizer()
-
-        self.env = None
 
     # Dunder for preventing certain methods to be pickled (issue with pickling lambda operators)
     #def __getstate__(self):
@@ -106,13 +108,13 @@ class PyGADOptimizer:
         instance = pygad.GA(
             # General
             suppress_warnings=True,
-            fitness_func=self.fitness_function_direct,
+            fitness_func=self.fitness_function_gradients,
             initial_population=self.population.individuals,
             num_generations=c.n_generations,
-            keep_elitism=c.elitism,
+            #keep_elitism=c.elitism,
             gene_space=self.range,
-            save_solutions=False,
-            save_best_solutions=True,
+            #save_solutions=False,
+            #save_best_solutions=True,
             on_generation=self.on_generation,
             parallel_processing=1,  # Utilize all available resources
             # Mutation
@@ -146,12 +148,54 @@ class PyGADOptimizer:
         prog_actions = prog_actions.clip(self.action_space.low, self.action_space.high)
         desired_actions, deltas = self.critic.improve_actions(prog_actions.astype(np.float32), self._critic_states)
 
+        # Printing
+        #print(f'Prog action: {prog_actions[0]}')
+        #print(f'Desired action: {desired_actions[0]}')
+
         # MSE
         batch_size = self._critic_states.shape[0]
         distance = abs(desired_actions - prog_actions)
-        fitness = -(distance.sum() / batch_size)
+        #fitness = -(distance.sum() / batch_size)
+        fitness = -distance.sum()
 
         return fitness
+
+    def fitness_function_gradients_subs(self, _, solution, solution_index) -> float:
+
+        # Compute improved actions
+        #prog = self.population.realize(solution_index)
+
+        progs = realize_subs_from_array(
+            genes=solution,
+            genome_space=self.population.genome_space,
+            config=self.config.program,
+            state_space=self.population.state_space,
+            operators=self.operators_dict
+        )
+
+        subs = []
+        n_nodes = np.array([len(prog._realization['expressed']) for prog in progs])
+
+        # Calculate distances of all sub programs
+        for prog in progs:
+            prog_actions = np.array([prog(state) for state in self._critic_states]).reshape(
+                (-1, 1))  #.astype(np.float32)
+            prog_actions = prog_actions.clip(self.action_space.low, self.action_space.high)
+            desired_actions, deltas = self.critic.improve_actions(prog_actions.astype(np.float32), self._critic_states)
+
+            # MSE
+            batch_size = self._critic_states.shape[0]
+            distance = abs(desired_actions - prog_actions)
+            fitness = (distance.sum() / batch_size)
+            subs.append(fitness)
+
+        subs = np.array(subs)
+        #avg_subs = subs.mean()
+        avg_subs = np.average(subs, weights=n_nodes)
+
+        prog_fit = self.fitness_function_gradients(_, solution, solution_index)
+
+        return prog_fit / avg_subs
 
     def fitness_function_direct(self, _, solution, solution_index) -> float:
 
@@ -241,13 +285,17 @@ class PyGADOptimizer:
         return fitness
 
     # Fit the produced actions to more optimal ones
-    def fit(self, critic_states=None, critic_actions=None) -> (float, float, float):
+    def fit_old(self, critic_states=None, critic_actions=None) -> (float, float, float):
 
         # Iterate with optimizer
         self._optim = self._init_optimizer()
         self._optim.initial_population = self.population.individuals
         self._critic_states = critic_states
         self._critic_actions = critic_actions
+
+        # Sample from buffer if given
+        if self.buffer is not None:
+            self.new_sample()
 
         # Calculate initial fitness
         self._optim.last_generation_fitness = self._optim.cal_pop_fitness()
@@ -259,12 +307,23 @@ class PyGADOptimizer:
             if self.buffer is not None:
                 self.new_sample()
 
+            # Reinit test
+            self._optim = self._init_optimizer()
+            self._optim.initial_population = self.population.individuals
+            self._optim.last_generation_fitness = self._optim.cal_pop_fitness()
+
             # The genetic operations on the population
             self._optim.run_select_parents()
             self._optim.run_crossover()
             self._optim.run_mutation()
             self._optim.run_update_population()
+
+            # Calc fitness function
+            self._optim.previous_generation_fitness = self._optim.last_generation_fitness.copy()
             self._optim.last_generation_fitness = self._optim.cal_pop_fitness()
+
+            # Print
+            self.on_generation(self._optim)
 
             # Update population with population of optimizer
             self.population.individuals = self._optim.population
@@ -276,6 +335,111 @@ class PyGADOptimizer:
 
         # Print
         print(f'Best program is {self.best_program} with fitness {self.best_fitness}')
+
+        return (self._optim.last_generation_fitness.max(),
+                self._optim.last_generation_fitness.min(),
+                self._optim.last_generation_fitness.mean())
+
+        # Fit the produced actions to more optimal ones
+
+    # Run n_generations with the optimizer
+    def run_optimizer(self):
+        # Run for each generation the whole evolutionary loop.
+        for gen in range(self.config.n_generations - 1):
+            # If replay buffer is given, sample new experience in each generation
+            #if self.buffer is not None:
+            #    self.new_sample()
+
+            # Reinit test
+            self._optim = self._init_optimizer()
+            self._optim.initial_population = self.population.individuals
+            self._optim.last_generation_fitness = self._optim.cal_pop_fitness()
+
+            # The genetic operations on the population
+            self._optim.run_select_parents()
+            self._optim.run_crossover()
+            self._optim.run_mutation()
+            self._optim.run_update_population()
+
+            # Calc fitness function
+            self._optim.previous_generation_fitness = self._optim.last_generation_fitness.copy()
+            self._optim.last_generation_fitness = self._optim.cal_pop_fitness()
+
+            # Print
+            self.on_generation(self._optim)
+
+            # Update population with population of optimizer
+            self.population.individuals = self._optim.population
+
+    def run_direct_validation(self, genes):
+
+        env = copy(self.env)
+        fitness = 0.0
+
+        #prog_wrong = self.population.realize(solution_index) # WRONG
+        prog = realize_from_array(
+            genes=genes,
+            genome_space=self.population.genome_space,
+            config=self.config.program,
+            state_space=self.population.state_space,
+            operators=self.operators_dict
+        )
+
+        obs, _ = env.reset()
+
+        terminated, truncated = False, False
+
+        while not terminated or not truncated:
+
+            action = prog(obs)
+            next_obs, reward, terminated, truncated, info = env.step([action])
+
+            fitness += reward
+            obs = next_obs
+            self.interactions += 1
+
+            if terminated or truncated:
+                break
+
+        return fitness
+
+    def fit(self, critic_states=None, critic_actions=None) -> (float, float, float):
+
+        # Iterate with optimizer
+        self._optim = self._init_optimizer()
+        self._optim.initial_population = self.population.individuals
+        self._critic_states = critic_states
+        self._critic_actions = critic_actions
+
+        # Sample from buffer if given
+        if self.buffer is not None:
+            self.new_sample()
+
+        # Calculate initial fitness
+        self._optim.last_generation_fitness = self._optim.cal_pop_fitness()
+
+        # Run the optimizer
+        self.run_optimizer()
+
+        # Candidate is best from optimizer
+        candidate_solution, candidate_fitness, candidate_index = self._optim.best_solution(
+            pop_fitness=self._optim.last_generation_fitness)
+
+        candidate_program = self.population.realize(self.best_index)
+        #candidate_score = self.run_direct_validation(candidate_solution)
+        #best_program_score = self.run_direct_validation(self.best_solution)
+
+
+        # Test if candidate performs better than current best in direct interaction
+
+        # Print
+        print(f'Candidate is {candidate_program} with fitness {candidate_fitness}')
+        #print(f'Best program is {self.best_program} with score {best_program_score}')
+        #print(f'Best candidate is {candidate_program} with score {candidate_score}')
+
+        #if candidate_score > best_program_score:
+        self.best_program = candidate_program
+        #    print(f"New best program: {self.best_program}")
 
         return (self._optim.last_generation_fitness.max(),
                 self._optim.last_generation_fitness.min(),

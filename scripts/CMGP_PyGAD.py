@@ -131,6 +131,7 @@ def main(config: ExperimentConfig):
         action_space=env.action_space,
         critic=critic,
         buffer=rb,
+        env=env,
         buffer_batch_size=args.training.agent.actor_batch_size) for _ in range(n_actions)]
 
     #for action_index in range(env.action_space.shape[0]):

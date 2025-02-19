@@ -3,7 +3,7 @@
 # Executable programs as the realization of the genome
 #
 # 28/11/2024 - Senne Deproost
-from copy import deepcopy
+from copy import deepcopy, copy
 
 import numpy as np
 from typing import Callable, List, Union, Any, Tuple
@@ -69,6 +69,7 @@ def SumString(x: list[str]) -> str:
         res += f', {x}'
     return f'{res} ]'
 
+
 # Realize program from array
 def realize_from_array(genes: np.array,
                        genome_space: List[GeneSpace],
@@ -86,6 +87,26 @@ def realize_from_array(genes: np.array,
     return realization
 
 
+def realize_subs_from_array(genes: np.array,
+                            genome_space: List[GeneSpace],
+                            config: CartesianConfig,
+                            state_space: gym.Space,
+                            operators: dict = SIMPLE_OPERATORS_DICT,
+                            ) -> List[Program]:
+    res = []
+    for i in range(config.n_nodes):
+        g = copy(genes)
+        g[-config.n_outputs] = i  # Todo better solution for programs with multiple inputs
+        genome = Genome(genes=g, genome_space=genome_space)
+        realization = CartesianProgram(
+            genome=genome,
+            input_space=state_space,
+            operators=operators,
+            config=config
+        )
+        res.append(realization)
+    return res
+
 
 # Cartesian graph based program:
 # Todo: List of operators can be removed since it is encapsulated in the genespace instance
@@ -96,6 +117,7 @@ class CartesianProgram(Program):
         self.config = config
         self._realization = self._process_nodes()  # Realization nesting of Nodes
         self._str = self.to_string()
+        self.n_nodes = self._realization['expressed']
 
     # Call dunder for easy execution
     def __call__(self, input: ndarray[float]) -> float:
@@ -115,7 +137,8 @@ class CartesianProgram(Program):
         # Accumulator
         nodes = {
             'all': [],
-            'output': []
+            'output': [],
+            'expressed': []
         }
 
         # Go over each set of genes representing a node, front to back
@@ -214,16 +237,19 @@ class CartesianProgram(Program):
         # Operator
         def on_operator(node: Node, input: Union[None, ndarray[float]]) -> str:
             operands = []
+            self._realization['expressed'].append(node)
             for operand in node.connected_nodes:
                 operands.append(operand.traverse(input, on_operator, on_inputvar, on_float))
             return node.function.print(operands)
 
         # Input variable
         def on_inputvar(node: Node, input: Union[None, ndarray[float]]) -> str:
+            self._realization['expressed'].append(node)
             return node.function.to_string(input)
 
         # Float
         def on_float(node: Node, input: Union[None, ndarray[float]]) -> str:
+            self._realization['expressed'].append(node)
             return str(node.function)
 
         for o in outputs:

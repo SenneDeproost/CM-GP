@@ -1,7 +1,7 @@
 import sys
+
 sys.path.append('../src/cmgp/')
 sys.path.append('../')
-
 
 import random
 import time
@@ -36,7 +36,6 @@ class CustomOptimizer(PyGADOptimizer):
     def __init__(self, config: OptimizerConfig, operators, space):
         super().__init__(config, operators, space)
         self.env = None
-        self.interactions = 0
 
     # New fit function
     def fitness_function(self, _, solution, solution_index) -> float:
@@ -65,7 +64,7 @@ class CustomOptimizer(PyGADOptimizer):
 
         return fitness
 
-    def fit(self) -> None:
+    def fit_old(self) -> None:
 
         self._optim.initial_population = self.population.individuals  #self.population.raw_genes()
 
@@ -78,7 +77,8 @@ class CustomOptimizer(PyGADOptimizer):
         self.population.individuals = self._optim.population
 
         # Set best results
-        best_sol, best_fit, best_idx = self._optim.best_solution(pop_fitness=self._optim.last_generation_fitness)  # Recalculates using new interaction
+        best_sol, best_fit, best_idx = self._optim.best_solution(
+            pop_fitness=self._optim.last_generation_fitness)  # Recalculates using new interaction
         self.best_solution_index = best_idx
         self.best_fitness = best_fit
         self.best_program = self.population.realize(self.best_solution_index)
@@ -86,6 +86,76 @@ class CustomOptimizer(PyGADOptimizer):
 
         print(f'Optimizer says: best program is {self.best_program}')
         print(f'Optimizer says: best fitness is {self.best_fitness}')
+
+    # Run n_generations with the optimizer
+    def run_optimizer(self):
+        # Run for each generation the whole evolutionary loop.
+        for gen in range(self.config.n_generations - 1):
+            # If replay buffer is given, sample new experience in each generation
+            #if self.buffer is not None:
+            #    self.new_sample()
+
+            # Reinit test
+            self._optim = self._init_optimizer()
+            self._optim.initial_population = self.population.individuals
+            self._optim.last_generation_fitness = self._optim.cal_pop_fitness()
+
+            # The genetic operations on the population
+            self._optim.run_select_parents()
+            self._optim.run_crossover()
+            self._optim.run_mutation()
+            self._optim.run_update_population()
+
+            # Calc fitness function
+            self._optim.previous_generation_fitness = self._optim.last_generation_fitness.copy()
+            self._optim.last_generation_fitness = self._optim.cal_pop_fitness()
+
+            # Print
+            self.on_generation(self._optim)
+
+            # Update population with population of optimizer
+            self.population.individuals = self._optim.population
+
+    def fit(self, critic_states=None, critic_actions=None) -> (float, float, float):
+
+        # Iterate with optimizer
+        self._optim = self._init_optimizer()
+        self._optim.initial_population = self.population.individuals
+        self._critic_states = critic_states
+        self._critic_actions = critic_actions
+
+        # Sample from buffer if given
+        if self.buffer is not None:
+            self.new_sample()
+
+        # Calculate initial fitness
+        self._optim.last_generation_fitness = self._optim.cal_pop_fitness()
+
+        # Run the optimizer
+        self.run_optimizer()
+
+        # Candidate is best from optimizer
+        candidate_solution, candidate_fitness, candidate_index = self._optim.best_solution(
+            pop_fitness=self._optim.last_generation_fitness)
+
+        candidate_program = self.population.realize(self.best_index)
+        candidate_score = self.run_direct_validation(candidate_solution)
+        best_program_score = self.run_direct_validation(self.best_solution)
+
+        # Test if candidate performs better than current best in direct interaction
+
+        # Print
+        print(f'Candidate is {candidate_program} with fitness {candidate_fitness}')
+        print(f'Best program is {self.best_program} with score {best_program_score}')
+        print(f'Best candidate is {candidate_program} with score {candidate_score}')
+
+        if candidate_score > best_program_score:
+            self.best_program = candidate_program
+            print(f"New best program: {self.best_program}")
+
+        return (self._optim.last_generation_fitness.max(),
+                self._optim.last_generation_fitness.min(),
+                self._optim.last_generation_fitness.mean())
 
 
 def make_env(env_id, seed, idx, capture_video, run_name):
@@ -171,13 +241,11 @@ def main(config: ExperimentConfig):
             optimizer.fit()
             print(optimizer.best_program)
 
-
     env.close()
     writer.close()
 
 
 if __name__ == "__main__":
-
     #if args.config_file is not None:
     #    c = ExperimentConfig
     #    with open(args.config_file, 'r') as f:

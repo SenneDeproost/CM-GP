@@ -90,7 +90,9 @@ class Critic:
 
             # Stop if gradient threshold is met
             # Todo: check if abs is needed inner
-            if torch.abs(og_actions - res_actions).mean() > self.config.update_threshold:
+            m = torch.abs(og_actions - res_actions).mean()
+            if m > self.config.update_threshold:
+                print(f'stopped grad update at mean {m}')
                 break
 
             #g = torch.tensor(g, requires_grad=True)

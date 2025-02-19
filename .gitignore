@@ -15,3 +15,5 @@ _old/
 
 *.ipynb_checkpoints*
 /scripts/.ipynb_checkpoints/
+
+*.pth

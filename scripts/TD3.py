@@ -1,6 +1,5 @@
 # docs and experiment results can be found at https://docs.cleanrl.dev/rl-algorithms/td3/#td3_continuous_actionpy
-
-
+import os
 # docs and experiment results can be found at https://docs.cleanrl.dev/rl-algorithms/td3/#td3_continuous_actionpy
 import sys
 
@@ -244,6 +243,8 @@ def main(config: ExperimentConfig):
 
     env.close()
     writer.close()
+
+    torch.save(critic.state_dict(), "./critic.pth")
 
 
 if __name__ == "__main__":

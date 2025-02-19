@@ -57,7 +57,7 @@ class CartesianConfig:
     # Name of representation
     representation: str = 'Cartesian'
     # Number of nodes in Cartesian graph
-    n_nodes: int = field(default=20)
+    n_nodes: int = field(default=10)
     # Number maximum arity over the set of operators
     max_node_arity: int = field(default=4)
     # Highest number for constant
@@ -76,11 +76,11 @@ class OptimizerConfig:
     # Number of individuals in population
     n_individuals: int = field(default=100)
     # Number of generations
-    n_generations: int = field(default=10000)
+    n_generations: int = field(default=10)
     # Number of parents mating
     n_parents_mating: int = field(default=80)
     # Probability of gene mutation
-    gene_mutation_prob: float = field(default=0.01) # 0.1
+    gene_mutation_prob: float = field(default=0.05) # 0.1
     # Percentage of genes to mutate (no effect if gene_mutation_prob is given)
     #gene_mutation_percent: float = field(default=10.0)
     # How many elites to keep
@@ -88,7 +88,7 @@ class OptimizerConfig:
     # Type of mutation
     mutation: str = field(default='random')
     # Range of mutation values
-    mutation_val: tuple[float, float] = field(default=(-10.0, 10.0)) # ! Important check to perform
+    mutation_val: tuple[float, float] = field(default=(-20.0, 20.0)) # ! Important check to perform
     # Type of crossover
     crossover: str = field(default='single_point')
     # Type of parent selection
@@ -116,7 +116,7 @@ class AgentConfig:
     # Batch size of sample from replay memory for critic
     critic_batch_size: int = field(default=256) # 256
     # Batch size of sample from replay memory for actor
-    actor_batch_size: int = field(default=100)  # 256 # Was a mistake, nonactive
+    actor_batch_size: int = field(default=1000)  # 256 # Was a mistake, nonactive
     # Scale of the policy noise
     exploration_noise: float = field(default=0.1) # 0.1
     # Policy noise
@@ -156,10 +156,10 @@ class TrainingConfig:
     critic: CriticConfig = field(default=CriticConfig)
 
     # Amount of time steps to learn
-    timesteps: int = field(default=600_000)
+    timesteps: int = field(default=100_000)
 
     # Timestep to start learning
-    start_learning: int = field(default=25e3)
+    start_learning: int = field(default=25e1)
     # Frequency of training the policy
     policy_update: int = field(default=1000) #5 # Needs to change in between experiments
 
