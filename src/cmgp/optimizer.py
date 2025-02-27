@@ -9,6 +9,7 @@ import torch
 from copy import copy
 from typing import List
 import pygad
+from pygad.utils.nsga2 import NSGA2
 import numpy as np
 from rich.box import SIMPLE
 from stable_baselines3.common.buffers import ReplayBuffer
@@ -23,6 +24,7 @@ import gymnasium as gym
 
 from program.realization import Program, CartesianProgram
 from program.realization import realize_from_array, realize_subs_from_array
+from src.cmgp import critic
 
 
 def print_fitness(ga, fitnesses):
@@ -40,7 +42,7 @@ class PyGADOptimizer:
                  critic: Critic = None,
                  buffer_batch_size: int = None,
                  action_space: gym.spaces.Box = None,
-                 env = None) -> None:
+                 env=None) -> None:
         self.interactions = 0
         self.config = config
         self.observation_space = observation_space
@@ -70,7 +72,7 @@ class PyGADOptimizer:
         self._critic_states, self._critic_actions = None, None
 
         # Optimizer instance
-        self._optim = self._init_optimizer()
+        self._init_optimizer()
 
     # Dunder for preventing certain methods to be pickled (issue with pickling lambda operators)
     #def __getstate__(self):
@@ -97,14 +99,18 @@ class PyGADOptimizer:
         if self.buffer is not None:
             self._critic_states = self.buffer.sample(self.buffer_batch_size).observations.detach().numpy().astype(
                 np.float32)
+            #t = self.buffer.sample(10)
+            #self._critic_states = np.array([x for xs in t for x in xs]).astype(np.float32)
+
 
     def on_generation(self, ga) -> None:
         fit = ga.last_generation_fitness
         print(f'F_best: {fit.max()}, F_worst: {fit.min()}  F_mean: {fit.mean()}', file=sys.stderr)
 
     # Initialize PyGAD optimizer Re-init is not expensive.
-    def _init_optimizer(self) -> pygad.GA:
+    def _init_optimizer(self) -> None:
         c = self.config
+        from utils.genetic import lexicase_selection
         instance = pygad.GA(
             # General
             suppress_warnings=True,
@@ -126,10 +132,31 @@ class PyGADOptimizer:
             # Crossover
             num_parents_mating=c.n_parents_mating,
             crossover_type=c.crossover,
-            parent_selection_type=c.parent_selection
+            parent_selection_type='tournament'
         )
 
-        return instance
+        self._optim = instance
+        self._optim.__optim = self  # Todo: fix dirty code
+
+    def fitness_individual_sample(self, solution, sample):
+
+        prog = realize_from_array(
+            genes=solution,
+            genome_space=self.population.genome_space,
+            config=self.config.program,
+            state_space=self.population.state_space,
+            operators=self.operators_dict
+        )
+
+        res = 0
+
+        prog_action = np.array(prog(sample)).reshape(-1, 1)
+        prog_action = prog_action.clip(self.action_space.low, self.action_space.high)
+        desired_action, deltas = self.critic.improve_actions(prog_action.astype(np.float32), [sample])
+        res += abs(desired_action - prog_action)
+
+        return -res[0][0]
+
 
     def fitness_function_gradients(self, _, solution, solution_index) -> float:
 
@@ -144,6 +171,8 @@ class PyGADOptimizer:
             operators=self.operators_dict
         )
 
+        print(f'Program: {prog}')
+
         prog_actions = np.array([prog(state) for state in self._critic_states]).reshape((-1, 1))  #.astype(np.float32)
         prog_actions = prog_actions.clip(self.action_space.low, self.action_space.high)
         desired_actions, deltas = self.critic.improve_actions(prog_actions.astype(np.float32), self._critic_states)
@@ -156,7 +185,7 @@ class PyGADOptimizer:
         batch_size = self._critic_states.shape[0]
         distance = abs(desired_actions - prog_actions)
         #fitness = -(distance.sum() / batch_size)
-        fitness = -distance.sum()
+        fitness = -distance.mean()
 
         return fitness
 
@@ -308,7 +337,7 @@ class PyGADOptimizer:
                 self.new_sample()
 
             # Reinit test
-            self._optim = self._init_optimizer()
+            self._init_optimizer()
             self._optim.initial_population = self.population.individuals
             self._optim.last_generation_fitness = self._optim.cal_pop_fitness()
 
@@ -345,14 +374,16 @@ class PyGADOptimizer:
     # Run n_generations with the optimizer
     def run_optimizer(self):
         # Run for each generation the whole evolutionary loop.
-        for gen in range(self.config.n_generations - 1):
+        for gen in range(self.config.n_generations):
             # If replay buffer is given, sample new experience in each generation
-            #if self.buffer is not None:
-            #    self.new_sample()
+            if self.buffer is not None:
+                self.new_sample()
 
             # Reinit test
-            self._optim = self._init_optimizer()
+            self._init_optimizer()
             self._optim.initial_population = self.population.individuals
+            #self._optim.run()
+
             self._optim.last_generation_fitness = self._optim.cal_pop_fitness()
 
             # The genetic operations on the population
@@ -369,7 +400,7 @@ class PyGADOptimizer:
             self.on_generation(self._optim)
 
             # Update population with population of optimizer
-            self.population.individuals = self._optim.population
+            self.population.individuals = copy(self._optim.population)
 
     def run_direct_validation(self, genes):
 
@@ -406,7 +437,7 @@ class PyGADOptimizer:
     def fit(self, critic_states=None, critic_actions=None) -> (float, float, float):
 
         # Iterate with optimizer
-        self._optim = self._init_optimizer()
+        self._init_optimizer()
         self._optim.initial_population = self.population.individuals
         self._critic_states = critic_states
         self._critic_actions = critic_actions
@@ -426,9 +457,12 @@ class PyGADOptimizer:
             pop_fitness=self._optim.last_generation_fitness)
 
         candidate_program = self.population.realize(self.best_index)
+
+        # Test by replacing population with best program !!!!!
+        #self.population.individuals = np.tile(candidate_solution, np.array([self.config.n_individuals, 1]))
+
         #candidate_score = self.run_direct_validation(candidate_solution)
         #best_program_score = self.run_direct_validation(self.best_solution)
-
 
         # Test if candidate performs better than current best in direct interaction
 

@@ -92,7 +92,7 @@ class Critic:
             # Todo: check if abs is needed inner
             m = torch.abs(og_actions - res_actions).mean()
             if m > self.config.update_threshold:
-                print(f'stopped grad update at mean {m}')
+                print(f'stopped grad update {i} at mean {m}')
                 break
 
             #g = torch.tensor(g, requires_grad=True)
@@ -110,6 +110,7 @@ class Critic:
 
         res_actions = res_actions.to(dtype=torch.float64)
 
+        #print(f'Delta gradients {deltas.detach().numpy().mean()}')
         return res_actions.detach().numpy(), deltas.detach().numpy()
 
     # Learn Q values

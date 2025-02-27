@@ -38,7 +38,7 @@ class CustomOptimizer(PyGADOptimizer):
         self.env = None
 
     # New fit function
-    def fitness_function(self, _, solution, solution_index) -> float:
+    def fitness_function_(self, _, solution, solution_index) -> float:
 
         env = copy(self.env)
 
@@ -96,7 +96,7 @@ class CustomOptimizer(PyGADOptimizer):
             #    self.new_sample()
 
             # Reinit test
-            self._optim = self._init_optimizer()
+            self._init_optimizer()
             self._optim.initial_population = self.population.individuals
             self._optim.last_generation_fitness = self._optim.cal_pop_fitness()
 
@@ -119,7 +119,7 @@ class CustomOptimizer(PyGADOptimizer):
     def fit(self, critic_states=None, critic_actions=None) -> (float, float, float):
 
         # Iterate with optimizer
-        self._optim = self._init_optimizer()
+        self._init_optimizer()
         self._optim.initial_population = self.population.individuals
         self._critic_states = critic_states
         self._critic_actions = critic_actions
@@ -146,12 +146,13 @@ class CustomOptimizer(PyGADOptimizer):
 
         # Print
         print(f'Candidate is {candidate_program} with fitness {candidate_fitness}')
-        print(f'Best program is {self.best_program} with score {best_program_score}')
+        #print(f'Best program is {self.best_program} with score {best_program_score}')
         print(f'Best candidate is {candidate_program} with score {candidate_score}')
 
-        if candidate_score > best_program_score:
-            self.best_program = candidate_program
-            print(f"New best program: {self.best_program}")
+        #if candidate_score > best_program_score:
+        self.best_program = candidate_program
+        #print(f"New best program: {self.best_program}")
+        #self.population.individuals = np.tile(candidate_solution, np.array([self.config.n_individuals, 1])) # !!!
 
         return (self._optim.last_generation_fitness.max(),
                 self._optim.last_generation_fitness.min(),

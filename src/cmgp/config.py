@@ -57,7 +57,7 @@ class CartesianConfig:
     # Name of representation
     representation: str = 'Cartesian'
     # Number of nodes in Cartesian graph
-    n_nodes: int = field(default=10)
+    n_nodes: int = field(default=20)
     # Number maximum arity over the set of operators
     max_node_arity: int = field(default=4)
     # Highest number for constant
@@ -74,13 +74,13 @@ class OptimizerConfig:
     # Configuration for type of program
     program: Union[CartesianConfig] = field(default=CartesianConfig)
     # Number of individuals in population
-    n_individuals: int = field(default=100)
+    n_individuals: int = field(default=10)
     # Number of generations
-    n_generations: int = field(default=10)
+    n_generations: int = field(default=1)
     # Number of parents mating
-    n_parents_mating: int = field(default=80)
+    n_parents_mating: int = field(default=2)
     # Probability of gene mutation
-    gene_mutation_prob: float = field(default=0.05) # 0.1
+    gene_mutation_prob: float = field(default=0.01) # 0.1
     # Percentage of genes to mutate (no effect if gene_mutation_prob is given)
     #gene_mutation_percent: float = field(default=10.0)
     # How many elites to keep
@@ -88,11 +88,11 @@ class OptimizerConfig:
     # Type of mutation
     mutation: str = field(default='random')
     # Range of mutation values
-    mutation_val: tuple[float, float] = field(default=(-20.0, 20.0)) # ! Important check to perform
+    mutation_val: tuple[float, float] = field(default=(-5.0, 5.0)) # ! Important check to perform
     # Type of crossover
     crossover: str = field(default='single_point')
     # Type of parent selection
-    parent_selection: str = field(default='sss')
+    parent_selection: str = field(default='random')
 
     # Reset the best program
     #best_reset: int = field(default=1)
@@ -129,7 +129,7 @@ class CriticConfig:
     """Config for critic"""
 
     # Learning rate
-    learning_rate: float = field(default=3e-4)
+    learning_rate: float = field(default=3e-5) #3e-4
     # Noise
     noise_clip: float = field(default=0.5)
     # Target smoothing coefficient
@@ -138,11 +138,11 @@ class CriticConfig:
     gamma: float = field(default=0.99)
 
     # Amount of update iterations
-    gradient_updates: int = field(default=1) # 100
+    gradient_updates: int = field(default=10) # 100
     # Gradient update threshold
-    update_threshold: float = field(default=1)
+    update_threshold: float = field(default=3)
     # Rate of update the gradient is applied
-    update_rate: float = field(default=1)
+    update_rate: float = field(default=0.01)
 
 @dataclass
 class TrainingConfig:
@@ -156,12 +156,12 @@ class TrainingConfig:
     critic: CriticConfig = field(default=CriticConfig)
 
     # Amount of time steps to learn
-    timesteps: int = field(default=100_000)
+    timesteps: int = field(default=500_000)
 
     # Timestep to start learning
-    start_learning: int = field(default=25e1)
+    start_learning: int = field(default=25e2)
     # Frequency of training the policy
-    policy_update: int = field(default=1000) #5 # Needs to change in between experiments
+    policy_update: int = field(default=100) #5 # Needs to change in between experiments
 
 
 @dataclass
