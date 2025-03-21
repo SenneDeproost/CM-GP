@@ -61,7 +61,7 @@ class CartesianConfig:
     # Number maximum arity over the set of operators
     max_node_arity: int = field(default=2)
     # Highest number for constant
-    max_constant: float = field(default=1)  # Higher constant == more chance for constant ToDo: lower prob constant
+    max_constant: float = field(default=5)  # Higher constant == more chance for constant ToDo: lower prob constant
     # Amount of outputs
     n_outputs: int = field(default=1)
 
