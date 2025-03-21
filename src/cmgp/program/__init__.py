@@ -55,8 +55,8 @@ SIMPLE_OPERATORS_DICT = {
     ],
     3: [],
     4: [
-        Grt(),
-        Sml()
+        #Grt(),
+        #Sml()
     ]}
 
 SIMPLE_OPERATORS = [x for y in SIMPLE_OPERATORS_DICT.values() for x in y]

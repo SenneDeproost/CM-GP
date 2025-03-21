@@ -14,9 +14,9 @@ import yaml
 @dataclass
 class WandbConfig:
     # Wandb track
-    track: bool = field(default=False)
+    track: bool = field(default=True)
     # Wandb project name
-    project: str = field(default='test')
+    project: str = field(default='GECCO_25')
     # Wandb group name
     group: str = field(default='test')
     # Wandb tags
@@ -57,9 +57,9 @@ class CartesianConfig:
     # Name of representation
     representation: str = 'Cartesian'
     # Number of nodes in Cartesian graph
-    n_nodes: int = field(default=20)
+    n_nodes: int = field(default=20) # 20
     # Number maximum arity over the set of operators
-    max_node_arity: int = field(default=4)
+    max_node_arity: int = field(default=2)
     # Highest number for constant
     max_constant: float = field(default=1)  # Higher constant == more chance for constant ToDo: lower prob constant
     # Amount of outputs
@@ -74,13 +74,15 @@ class OptimizerConfig:
     # Configuration for type of program
     program: Union[CartesianConfig] = field(default=CartesianConfig)
     # Number of individuals in population
-    n_individuals: int = field(default=10)
+    n_individuals: int = field(default=100) #10
     # Number of generations
     n_generations: int = field(default=1)
     # Number of parents mating
     n_parents_mating: int = field(default=2)
+    # Number of parents mating
+    keep_parents: int = field(default=0)
     # Probability of gene mutation
-    gene_mutation_prob: float = field(default=0.01) # 0.1
+    gene_mutation_prob: float = field(default=0.01) # 0.01
     # Percentage of genes to mutate (no effect if gene_mutation_prob is given)
     #gene_mutation_percent: float = field(default=10.0)
     # How many elites to keep
@@ -116,7 +118,7 @@ class AgentConfig:
     # Batch size of sample from replay memory for critic
     critic_batch_size: int = field(default=256) # 256
     # Batch size of sample from replay memory for actor
-    actor_batch_size: int = field(default=1000)  # 256 # Was a mistake, nonactive
+    actor_batch_size: int = field(default=100)  # 1000 # Was a mistake, nonactive
     # Scale of the policy noise
     exploration_noise: float = field(default=0.1) # 0.1
     # Policy noise
@@ -129,7 +131,7 @@ class CriticConfig:
     """Config for critic"""
 
     # Learning rate
-    learning_rate: float = field(default=3e-5) #3e-4
+    learning_rate: float = field(default=3e-4) #3e-4
     # Noise
     noise_clip: float = field(default=0.5)
     # Target smoothing coefficient
@@ -138,9 +140,9 @@ class CriticConfig:
     gamma: float = field(default=0.99)
 
     # Amount of update iterations
-    gradient_updates: int = field(default=10) # 100
+    gradient_updates: int = field(default=10) # 10
     # Gradient update threshold
-    update_threshold: float = field(default=3)
+    update_threshold: float = field(default=1)
     # Rate of update the gradient is applied
     update_rate: float = field(default=0.01)
 
@@ -156,12 +158,12 @@ class TrainingConfig:
     critic: CriticConfig = field(default=CriticConfig)
 
     # Amount of time steps to learn
-    timesteps: int = field(default=500_000)
+    timesteps: int = field(default=150_000)
 
     # Timestep to start learning
     start_learning: int = field(default=25e2)
     # Frequency of training the policy
-    policy_update: int = field(default=100) #5 # Needs to change in between experiments
+    policy_update: int = field(default=10) #5 # Needs to change in between experiments
 
 
 @dataclass

@@ -32,6 +32,7 @@ def print_fitness(ga, fitnesses):
     pass
 
 
+
 # Todo: Generic class, not fixed to CGP
 class PyGADOptimizer:
     def __init__(self,
@@ -107,6 +108,18 @@ class PyGADOptimizer:
         fit = ga.last_generation_fitness
         print(f'F_best: {fit.max()}, F_worst: {fit.min()}  F_mean: {fit.mean()}', file=sys.stderr)
 
+    def on_mutation(self, ga, offspring):
+
+        for o in offspring:
+            prog = realize_from_array(
+                genes=o,
+                genome_space=self.population.genome_space,
+                config=self.config.program,
+                state_space=self.population.state_space,
+                operators=self.operators_dict
+            )
+            print(f'Mutated: {prog}')
+
     # Initialize PyGAD optimizer Re-init is not expensive.
     def _init_optimizer(self) -> None:
         c = self.config
@@ -122,6 +135,7 @@ class PyGADOptimizer:
             #save_solutions=False,
             #save_best_solutions=True,
             on_generation=self.on_generation,
+            on_mutation=self.on_mutation,
             parallel_processing=1,  # Utilize all available resources
             # Mutation
             mutation_probability=c.gene_mutation_prob,
@@ -132,7 +146,8 @@ class PyGADOptimizer:
             # Crossover
             num_parents_mating=c.n_parents_mating,
             crossover_type=c.crossover,
-            parent_selection_type='tournament'
+            parent_selection_type=c.parent_selection,
+            keep_parents=c.keep_parents,
         )
 
         self._optim = instance
