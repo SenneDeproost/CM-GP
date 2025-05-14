@@ -38,8 +38,8 @@ class InputVar:
 SIMPLE_OPERATORS_DICT = {
     0: [],
     1: [
-        #Sin(),
-        #Cos(),
+        Sin(),
+        Cos(),
         Abs(),
         #Exp(),
         #Log(),

@@ -142,7 +142,9 @@ def main(config: ExperimentConfig):
     #for action_index in range(env.action_space.shape[0]):
     #    print(f"a[{action_index}] = {program_optimizers[action_index].best_program}")
 
-    #best_programs = [optimizer.best_program for optimizer in program_optimizers]
+
+    best_programs = [optimizer.best_program for optimizer in program_optimizers]
+
 
     start_time = time.time()
 
@@ -152,8 +154,6 @@ def main(config: ExperimentConfig):
     n_environment_interactions = 0
 
     for global_step in range(args.training.timesteps):
-
-        best_programs = [optimizer.best_program for optimizer in program_optimizers] #### !!!!!! STUUUUUPID mistake
 
         # ALGO LOGIC: put action logic here
         if global_step < args.training.start_learning:
@@ -199,13 +199,6 @@ def main(config: ExperimentConfig):
 
         # ALGO LOGIC: training.
         if global_step > args.training.start_learning:
-
-            # !!!!! Reset env with every training policy
-            #print(f"global_step={global_step}, episodic_return={info['episode']['r']}")
-            #next_obs, _ = env.reset()
-            #obs = next_obs
-
-
             data = rb.sample(args.training.agent.critic_batch_size)
             with torch.no_grad():
                 clipped_noise = (torch.randn_like(
@@ -213,7 +206,7 @@ def main(config: ExperimentConfig):
                     -args.training.agent.noise_clip, args.training.agent.noise_clip
                 )
 
-                clipped_noise = 0 # !!!!!!
+                #clipped_noise = 0 # !!!!!!
 
                 # Go over all observations the buffer provides
                 next_state_actions = get_state_actions(best_programs,
