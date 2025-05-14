@@ -428,6 +428,7 @@ class PyGADOptimizer:
         for gen in range(self.config.n_generations):
             # If replay buffer is given, sample new experience in each generation
             if self.buffer is not None:
+                #pass
                 self.new_sample()
 
             # Reinit test
@@ -510,7 +511,7 @@ class PyGADOptimizer:
         candidate_program = self.population.realize(self.best_index)
 
         # Test by replacing population with best program !!!!!
-        #self.population.individuals = np.tile(candidate_solution, np.array([self.config.n_individuals, 1]))
+        self.population.individuals = np.tile(candidate_solution, np.array([self.config.n_individuals, 1]))
 
         #candidate_score = self.run_direct_validation(candidate_solution)
         #best_program_score = self.run_direct_validation(self.best_solution)

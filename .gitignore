@@ -25,3 +25,5 @@ scripts/frames/
 scripts/pole_angle/
 
 *.npy
+
+*.mp4
