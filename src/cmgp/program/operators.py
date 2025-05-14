@@ -82,7 +82,8 @@ class Mod(Operator):
         super().__init__(self.name, self.n_operands)
 
     def __call__(self, x: np.ndarray[float]) -> float:
-        if x[0] == x[1] or x[1] == 0:    # Fixes bug input_1 % input_1 when input_1 = 0
+        #if x[0] == x[1] or x[1] == 0:    # Fixes bug input_1 % input_1 when input_1 = 0
+        if x[1] == 0:
             return 0.0
         else:
             return x[0] % x[1]

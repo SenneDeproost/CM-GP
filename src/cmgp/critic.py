@@ -97,7 +97,7 @@ class Critic:
 
             #g = torch.tensor(g, requires_grad=True)
             delta = self.config.update_rate*g
-            res_actions = res_actions + delta
+            res_actions = res_actions + delta  # !!!! Minus
             deltas += delta.detach()
             #predictions.append(res_actions[1].detach().numpy()[0])
 
@@ -130,6 +130,11 @@ class Critic:
         self.optimizer.step()
 
         return q_loss.item(), q_a_values.detach().numpy()
+
+    def q_to_action_gradients(self, gradients, rewards, states, actions, qs):
+        pass
+
+
 
     # Update target network when updating policy
     def update_target(self) -> None:

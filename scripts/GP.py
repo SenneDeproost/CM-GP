@@ -1,5 +1,7 @@
 import sys
 
+#from scripts.cartpole import terminated
+
 sys.path.append('../src/cmgp/')
 sys.path.append('../')
 
@@ -197,6 +199,7 @@ def main(config: ExperimentConfig):
             entity=args.log.wandb.entity,
             sync_tensorboard=True,
             config=vars(args),
+            mode='online',
             name=run_name,
             monitor_gym=True,
             save_code=True,
@@ -236,17 +239,40 @@ def main(config: ExperimentConfig):
 
     obs, _ = env.reset(seed=args.seed)
 
-    for global_step in range(args.training.timesteps):
+    for global_step in range(1000):
+
+        env_interactions = 0
 
         for optimizer in program_optimizers:
             optimizer.fit()
-            print(optimizer.best_program)
+            p = optimizer.best_program
+            env_interactions += optimizer.interactions
+
+
+        # Validation
+        obs, _ = env.reset(seed=args.seed)
+        l = 0
+        r = 0
+
+        terminated, truncated, = False, False
+        while not terminated or truncated:
+            l += 1
+            #print(f'OBS: {obs}')
+            action = get_state_actions(program_optimizers, [obs], env, args)
+            obs, reward, terminated, truncated, info = env.step(action[0])
+            r += reward
+            if terminated or truncated:
+                break
+        writer.add_scalar("policy/episodic_return", r, global_step)
+        writer.add_scalar("policy/episodic_length", l, global_step)
+        writer.add_scalar("policy/env_interactions", env_interactions, env_interactions)
 
     env.close()
     writer.close()
 
 
 if __name__ == "__main__":
+    #exit()
     #if args.config_file is not None:
     #    c = ExperimentConfig
     #    with open(args.config_file, 'r') as f:

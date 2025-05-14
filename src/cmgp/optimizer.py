@@ -71,6 +71,7 @@ class PyGADOptimizer:
         self.action_space = action_space
 
         self._critic_states, self._critic_actions = None, None
+        self._next_critic_states = None
 
         # Optimizer instance
         self._init_optimizer()
@@ -98,7 +99,10 @@ class PyGADOptimizer:
     def new_sample(self) -> None:
         # Check if buffer is given in the optimizer
         if self.buffer is not None:
-            self._critic_states = self.buffer.sample(self.buffer_batch_size).observations.detach().numpy().astype(
+            experiences = self.buffer.sample(self.buffer_batch_size)
+            self._critic_states = experiences.observations.detach().numpy().astype(
+                np.float32)
+            self._next_critic_states = experiences.next_observations.detach().numpy().astype(
                 np.float32)
             #t = self.buffer.sample(10)
             #self._critic_states = np.array([x for xs in t for x in xs]).astype(np.float32)
@@ -127,15 +131,15 @@ class PyGADOptimizer:
         instance = pygad.GA(
             # General
             suppress_warnings=True,
-            fitness_func=self.fitness_function_gradients,
+            fitness_func=self.fitness_function_q,
             initial_population=self.population.individuals,
             num_generations=c.n_generations,
-            #keep_elitism=c.elitism,
+            keep_elitism=c.elitism,
             gene_space=self.range,
             #save_solutions=False,
             #save_best_solutions=True,
             on_generation=self.on_generation,
-            on_mutation=self.on_mutation,
+            #on_mutation=self.on_mutation,
             parallel_processing=1,  # Utilize all available resources
             # Mutation
             mutation_probability=c.gene_mutation_prob,
@@ -186,10 +190,10 @@ class PyGADOptimizer:
             operators=self.operators_dict
         )
 
-        print(f'Program: {prog}')
+        #print(f'Program: {prog}')
 
         prog_actions = np.array([prog(state) for state in self._critic_states]).reshape((-1, 1))  #.astype(np.float32)
-        prog_actions = prog_actions.clip(self.action_space.low, self.action_space.high)
+        #prog_actions = prog_actions.clip(self.action_space.low, self.action_space.high)     ### Clipping disabled
         desired_actions, deltas = self.critic.improve_actions(prog_actions.astype(np.float32), self._critic_states)
 
         # Printing
@@ -201,6 +205,8 @@ class PyGADOptimizer:
         distance = abs(desired_actions - prog_actions)
         #fitness = -(distance.sum() / batch_size)
         fitness = -distance.mean()
+
+        #print(f'Fitness: {fitness} for program {prog}')
 
         return fitness
 
@@ -291,9 +297,19 @@ class PyGADOptimizer:
 
         # Compute program actions
         prog_actions = np.array([prog(state) for state in self._critic_states]).reshape((-1, 1))  #.astype(np.float32)
+        best_prog_actions = np.array([self.best_program(state) for state in self._critic_states]).reshape((-1, 1))
 
         if self.action_space is not None:
             prog_actions = prog_actions.clip(self.action_space.low, self.action_space.high)
+            best_prog_actions = best_prog_actions.clip(self.action_space.low, self.action_space.high)
+
+        # NEXT Compute program actions
+        next_prog_actions = np.array([prog(state) for state in self._next_critic_states]).reshape((-1, 1))  #.astype(np.float32)
+        next_best_prog_actions = np.array([self.best_program(state) for state in self._next_critic_states]).reshape((-1, 1))
+
+        if self.action_space is not None:
+            next_prog_actions = next_prog_actions.clip(self.action_space.low, self.action_space.high)
+            next_best_prog_actions = next_best_prog_actions.clip(self.action_space.low, self.action_space.high)
 
         # Change large numbers to arbitrary large number
         #prog_actions[prog_actions==torch.inf] = 9e6
@@ -306,9 +322,21 @@ class PyGADOptimizer:
         #else:
         #    desired_actions = self._critic_actions
 
-        actions = torch.from_numpy(prog_actions).float()
+        candidate_actions = torch.from_numpy(prog_actions).float()
+        #best_candidate_actions = torch.from_numpy(best_prog_actions).float()
         states = torch.from_numpy(self._critic_states).float()
-        q_values = self.critic.model(actions, states)
+        prog_q_values = self.critic.model(candidate_actions, states).detach().numpy()
+        #best_prog_q_values = self.critic.model(best_candidate_actions, states).detach().numpy()
+
+        next_candidate_actions = torch.from_numpy(next_prog_actions).float()
+        #best_candidate_actions = torch.from_numpy(best_prog_actions).float()
+        next_states = torch.from_numpy(self._next_critic_states).float()
+        next_prog_q_values = self.critic.model(next_candidate_actions, next_states).detach().numpy()
+        #best_prog_q_values = self.critic.model(best_candidate_actions, states).detach().numpy()
+
+
+
+
         self.critic.model.zero_grad()
         #q_values = np.array([prog(state) for state in self._critic_states]).reshape((-1,1))
 
@@ -317,7 +345,15 @@ class PyGADOptimizer:
         #distance = sum(q_values)/batch_size
         #fitness = -(distance.sum())
         #fitness = -(distance.sum() / batch_size)
-        fitness = float(q_values.mean().detach().numpy())
+        #fitness = float(q_values.mean().detach().numpy())
+
+        #diff = prog_q_values - best_prog_q_values
+        # fitness = float(diff.mean())
+
+        fitness = float((next_prog_q_values - prog_q_values).sum())
+
+        # Compare with best program
+
         #print(fitness)
         #print(np.isnan(fitness))
         #if np.isnan(fitness):
@@ -462,7 +498,7 @@ class PyGADOptimizer:
             self.new_sample()
 
         # Calculate initial fitness
-        self._optim.last_generation_fitness = self._optim.cal_pop_fitness()
+        #self._optim.last_generation_fitness = self._optim.cal_pop_fitness()
 
         # Run the optimizer
         self.run_optimizer()

@@ -1,0 +1,58 @@
+config_file: null
+cuda: false
+deterministic: true
+env_id: InvertedPendulum-v4
+log:
+  huggingface:
+    entity: null
+    upload: false
+  run_name: config
+  save: false
+  video: false
+  wandb:
+    entity: null
+    group: test
+    project: GECCO_25
+    tags: []
+    track: true
+seed: 0
+training:
+  agent:
+    actor_batch_size: 100
+    buffer_size: 1000000
+    critic_batch_size: 256
+    exploration_noise: 0.1
+    gamma: 0.99
+    learning_rate: 0.0003
+    noise_clip: 0.5
+    policy_noise: 0.1
+    tau: 0.005
+  critic:
+    gamma: 0.99
+    gradient_updates: 1
+    learning_rate: 3.0e-05
+    noise_clip: 0.5
+    tau: 0.005
+    update_rate: 1
+    update_threshold: 3
+  optimizer:
+    crossover: single_point
+    elitism: 0
+    gene_mutation_prob: 0.01
+    mutation: random
+    mutation_val:
+    - -5.0
+    - 5.0
+    n_generations: 1
+    n_individuals: 100
+    n_parents_mating: 2
+    parent_selection: random
+    program:
+      max_constant: 1
+      max_node_arity: 4
+      n_nodes: 20
+      n_outputs: 1
+      representation: Cartesian
+  policy_update: 10
+  start_learning: 2500.0
+  timesteps: 150000
