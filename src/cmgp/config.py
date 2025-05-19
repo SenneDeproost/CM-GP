@@ -16,7 +16,7 @@ class WandbConfig:
     # Wandb track
     track: bool = field(default=True)
     # Wandb project name
-    project: str = field(default='GECCO_25')
+    project: str = field(default='RLC_25')
     # Wandb group name
     group: str = field(default='test')
     # Wandb tags
@@ -61,7 +61,7 @@ class CartesianConfig:
     # Number maximum arity over the set of operators
     max_node_arity: int = field(default=2)
     # Highest number for constant
-    max_constant: float = field(default=5)  # Higher constant == more chance for constant ToDo: lower prob constant
+    max_constant: float = field(default=1)  # Higher constant == more chance for constant ToDo: lower prob constant
     # Amount of outputs
     n_outputs: int = field(default=1)
 
@@ -78,7 +78,7 @@ class OptimizerConfig:
     # Number of generations
     n_generations: int = field(default=1)
     # Number of parents mating
-    n_parents_mating: int = field(default=2)
+    n_parents_mating: int = field(default=50)
     # Number of parents mating
     keep_parents: int = field(default=0)
     # Probability of gene mutation
@@ -86,15 +86,15 @@ class OptimizerConfig:
     # Percentage of genes to mutate (no effect if gene_mutation_prob is given)
     #gene_mutation_percent: float = field(default=10.0)
     # How many elites to keep
-    elitism: int = field(default=0) # High enough!
+    elitism: int = field(default=10) # High enough!
     # Type of mutation
     mutation: str = field(default='random')
     # Range of mutation values
-    mutation_val: tuple[float, float] = field(default=(-5.0, 5.0)) # ! Important check to perform
+    mutation_val: tuple[float, float] = field(default=(-10.0, 10.0)) # ! Important check to perform
     # Type of crossover
     crossover: str = field(default='single_point')
     # Type of parent selection
-    parent_selection: str = field(default='random')
+    parent_selection: str = field(default='sss')
 
     # Reset the best program
     #best_reset: int = field(default=1)
@@ -118,7 +118,7 @@ class AgentConfig:
     # Batch size of sample from replay memory for critic
     critic_batch_size: int = field(default=256) # 256
     # Batch size of sample from replay memory for actor
-    actor_batch_size: int = field(default=100)  # 1000 # Was a mistake, nonactive
+    actor_batch_size: int = field(default=1000)  # 1000 # Was a mistake, nonactive
     # Scale of the policy noise
     exploration_noise: float = field(default=0.1) # 0.1
     # Policy noise
@@ -140,11 +140,11 @@ class CriticConfig:
     gamma: float = field(default=0.99)
 
     # Amount of update iterations
-    gradient_updates: int = field(default=10) # 10
+    gradient_updates: int = field(default=1) # 10
     # Gradient update threshold
     update_threshold: float = field(default=1)
     # Rate of update the gradient is applied
-    update_rate: float = field(default=0.01)
+    update_rate: float = field(default=1)
 
 @dataclass
 class TrainingConfig:
@@ -163,7 +163,7 @@ class TrainingConfig:
     # Timestep to start learning
     start_learning: int = field(default=25e2)
     # Frequency of training the policy
-    policy_update: int = field(default=10) #5 # Needs to change in between experiments
+    policy_update: int = field(default=100) #5 # Needs to change in between experiments
 
 
 @dataclass
