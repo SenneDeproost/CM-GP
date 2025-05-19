@@ -131,7 +131,7 @@ class PyGADOptimizer:
         instance = pygad.GA(
             # General
             suppress_warnings=True,
-            fitness_func=self.fitness_function_q,
+            fitness_func=self.fitness_function_gradients,
             initial_population=self.population.individuals,
             num_generations=c.n_generations,
             keep_elitism=c.elitism,
@@ -428,7 +428,7 @@ class PyGADOptimizer:
         for gen in range(self.config.n_generations):
             # If replay buffer is given, sample new experience in each generation
             if self.buffer is not None:
-                #pass
+                pass
                 self.new_sample()
 
             # Reinit test
@@ -505,13 +505,13 @@ class PyGADOptimizer:
         self.run_optimizer()
 
         # Candidate is best from optimizer
-        candidate_solution, candidate_fitness, candidate_index = self._optim.best_solution(
+        self.best_solution, self.best_fitness, self.best_index = self._optim.best_solution(
             pop_fitness=self._optim.last_generation_fitness)
 
-        candidate_program = self.population.realize(self.best_index)
+        self.best_program = self.population.realize(self.best_index)
 
         # Test by replacing population with best program !!!!!
-        self.population.individuals = np.tile(candidate_solution, np.array([self.config.n_individuals, 1]))
+        #self.population.individuals = np.tile(self.best_solution, np.array([self.config.n_individuals, 1]))
 
         #candidate_score = self.run_direct_validation(candidate_solution)
         #best_program_score = self.run_direct_validation(self.best_solution)
@@ -519,13 +519,13 @@ class PyGADOptimizer:
         # Test if candidate performs better than current best in direct interaction
 
         # Print
-        print(f'Candidate is {candidate_program} with fitness {candidate_fitness}')
+        print(f'Candidate is {self.best_program} with fitness {self.best_fitness}')
         #print(f'Best program is {self.best_program} with score {best_program_score}')
         #print(f'Best candidate is {candidate_program} with score {candidate_score}')
 
         #if candidate_score > best_program_score:
-        self.best_program = candidate_program
         #    print(f"New best program: {self.best_program}")
+
 
         return (self._optim.last_generation_fitness.max(),
                 self._optim.last_generation_fitness.min(),

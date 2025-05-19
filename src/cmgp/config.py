@@ -76,9 +76,9 @@ class OptimizerConfig:
     # Number of individuals in population
     n_individuals: int = field(default=100) #10
     # Number of generations
-    n_generations: int = field(default=100)
+    n_generations: int = field(default=1)
     # Number of parents mating
-    n_parents_mating: int = field(default=50)
+    n_parents_mating: int = field(default=5)
     # Number of parents mating
     keep_parents: int = field(default=0)
     # Probability of gene mutation
@@ -108,7 +108,7 @@ class AgentConfig:
     """Configuration for the Reinforcement Learning Agent"""
 
     # Size of replay buffer
-    buffer_size: int = field(default=int(1e4))
+    buffer_size: int = field(default=int(1e6))
     # Learning rate of network optimizer
     learning_rate: float = field(default=3e-4)
     # Discount factor
@@ -118,7 +118,7 @@ class AgentConfig:
     # Batch size of sample from replay memory for critic
     critic_batch_size: int = field(default=256) # 256
     # Batch size of sample from replay memory for actor
-    actor_batch_size: int = field(default=10)  # 1000 # Was a mistake, nonactive
+    actor_batch_size: int = field(default=1000)  # 1000 # Was a mistake, nonactive
     # Scale of the policy noise
     exploration_noise: float = field(default=0.01) # 0.1
     # Policy noise
@@ -131,7 +131,7 @@ class CriticConfig:
     """Config for critic"""
 
     # Learning rate
-    learning_rate: float = field(default=3e-6) #3e-4
+    learning_rate: float = field(default=3e-4) #3e-4
     # Noise
     noise_clip: float = field(default=0.5)
     # Target smoothing coefficient
@@ -163,7 +163,7 @@ class TrainingConfig:
     # Timestep to start learning
     start_learning: int = field(default=25e2)
     # Frequency of training the policy
-    policy_update: int = field(default=1000) #5 # Needs to change in between experiments
+    policy_update: int = field(default=100) #5 # Needs to change in between experiments
 
 
 @dataclass
