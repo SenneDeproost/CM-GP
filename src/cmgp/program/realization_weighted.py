@@ -3,17 +3,25 @@
 # Executable programs as the realization of the genome
 #
 # 28/11/2024 - Senne Deproost
+import os
+import sys
+
+from src.cmgp.config import OptimizerConfig
+
+sys.path.insert(0, '../')
 from copy import deepcopy, copy
 
 import numpy as np
 from typing import Callable, List, Union, Any, Tuple
 import gymnasium as gym
+from matplotlib.pyplot import connect
+
 import test
 
 from numpy import ndarray
 
 from config import CartesianConfig
-from population import *
+from population_weighted import *
 from program import Operator, InputVar, SIMPLE_OPERATORS, SIMPLE_OPERATORS_DICT
 
 
@@ -23,11 +31,12 @@ from program import Operator, InputVar, SIMPLE_OPERATORS, SIMPLE_OPERATORS_DICT
 
 # Node as part of the Cartesian graph
 class Node:
-    def __init__(self, function: Union[Operator, InputVar, float], output: bool, connections: List[int]):
-        self.function = function
-        self.output = output
-        self.connections = connections
-        self.connected_nodes = []
+    def __init__(self,
+                 config: CartesianConfig,
+                 function_dist: ndarray[float],
+                 connection_dist: List[ndarray[float]]):
+        self.function_dist, self.connection_dist = function_dist, connection_dist
+        self.config = config
 
     def __str__(self) -> str:
         return f' [ {self.function} | {self.output} | {self.connections} ]'
@@ -36,23 +45,21 @@ class Node:
     def traverse(self, input: Union[ndarray[float], None],
                  on_operator: Callable, on_inputvar: Callable, on_float: Callable):
 
-        function = self.function
+        # Connections
+        connections = []
 
-        # Operator
-        if isinstance(function, Operator):
-            #print(self.function, self.connections)
-            return on_operator(self, input)
+        # Determine connections greedily
+        for connection in self.connection_dist:
+            connections.append(np.argmax(connection))
 
-        # Input variable
-        elif isinstance(function, InputVar):
-            return on_inputvar(self, input)
-
-        # Float
-        elif isinstance(function, float):
-            return on_float(self, input)
-
-        else:
-            raise ValueError("Node with invalid function type")
+        # Functions
+        # Go over each possible function (inputs + operators) and traverse using the given weight
+        for i, f in self.function_dist:
+            # Part of the distribution that is input variables
+            if i < self.config.n_inputs:
+                on_inputvar(self, index=i, input=input)
+            else:
+                on_operator(self, index=i, input=input)
 
 
 # Program base class
@@ -114,10 +121,13 @@ class CartesianProgram(Program):
     def __init__(self, genome: Genome, input_space: gym.Space, operators: List[Operator], config: CartesianConfig):
         super().__init__(genome, input_space, deepcopy(operators))
         self.genome = genome
+        self.n_operators = len(operators)
         self.config = config
+        self.input_space = input_space
+        self.n_inputs = input_space.shape[0]
         self._realization = self._process_nodes()  # Realization nesting of Nodes
         self._str = self.to_string()
-        self.n_nodes = self._realization['expressed']
+
 
     # Call dunder for easy execution
     def __call__(self, input: ndarray[float]) -> float:
@@ -131,135 +141,44 @@ class CartesianProgram(Program):
 
     # Process the nodes
     def _process_nodes(self):
+        nodes = []
+        roots = []
+        node_len = node_length(self.config, self.n_inputs, self.operators)
+        last_end = None
+        values = self.genome.values
 
-        _genes_per_node = genes_per_node(self.config)
+        start_index = 0
 
-        # Accumulator
-        nodes = {
-            'all': [],
-            'output': [],
-            'expressed': []
-        }
-
-        # Go over each set of genes representing a node, front to back
+        # Nodes
         for i in range(self.config.n_nodes):
-            # Process
-            n_index = i * _genes_per_node
-            f_index, start_c_index, stop_c_index = (n_index,
-                                                    n_index + 1,
-                                                    n_index + 1 + self.config.max_node_arity)
-            operator = self.genome.express_gene(f_index)  # Gene space has list of operators that can be realized
-            # Fist node cannot have any connections
-            connections = [int(self.genome.express_gene(j)) for j in range(start_c_index, stop_c_index)]
-            # Filter out all empty connections
-            connections = [i for i in connections if i != EMPTY]
+            connection_index = start_index + self.n_operators + self.n_inputs
+            end_index = connection_index + self.config.n_nodes
+            f_v = values [start_index:connection_index]
+            c_v = values [connection_index:end_index]
+            node = Node(self.config,
+                        function_dist=f_v,
+                        connection_dist=c_v)
+            nodes.append(node)
+            last_end = end_index
+            start_index += node_len
 
-            # Transform into node abstraction and put into accumulator
-            node = Node(operator, False, connections)
-            nodes['all'].append(node)
-
-            # Go from back to front to read output genes
-
+        # Roots
+        root_start = last_end + 1
         for i in range(self.config.n_outputs):
-            # Calculate index and grab node
-            idx = len(self.genome) - i - 1
-            o_index = self.genome.express_gene(idx)
-            node = nodes['all'][o_index]
-
-            # Make it an output node
-            node.output = True
-            nodes['output'].append(node)
-
-        # Check if there is an output node, otherwise it is an invalid program
-        assert len(nodes['output']) > 0, f"No output in {self.genome}"
-
-        # Go over a second time for setting the connections and operands
-        for node in nodes['all']:
-            function = node.function
-
-            ## Cases need to be separate conditional outside connection loop
-            # Operator case
-            if isinstance(function, Operator):
-                for connection in node.connections[:function.n_operands]:
-                    connected_node = nodes['all'][connection]
-                    node.connected_nodes.append(connected_node)
-                    #function.operands.append(connected_node)  # This bug ruined my Christmas vacation
-
-            # All other cases
-            else:
-                for connection in node.connections:
-                    connected_node = nodes['all'][connection]
-                    node.connected_nodes.append(connected_node)
+            root_end = root_start + self.config.n_nodes
+            roots.append(values[root_start:root_end])
+            root_start += node_len
 
         return nodes
 
+
     # Evaluate the realized function
     def evaluate(self, input: ndarray[float]) -> float:
-
-        res = 0
-        outputs = self._realization['output']
-
-        # Operator
-        def on_operator(node: Node, input: Union[None, ndarray[float]]) -> Operator:
-            operands = []
-            for operand in node.connected_nodes:  # Todo: fix slice
-                operands.append(operand.traverse(input, on_operator, on_inputvar, on_float))
-
-            return node.function(operands)
-
-        # Input variable
-        def on_inputvar(node: Node, input: Union[None, ndarray[float]]) -> float:
-            return node.function(input)
-
-        # Float
-        def on_float(node: Node, input: Union[None, ndarray[float]]) -> float:
-            return node.function
-
-        # Sum over all output nodes
-        for o in outputs:
-            r = o.traverse(input, on_operator, on_inputvar, on_float)
-            res += r
-
-        # Infinity resolvement
-        #if res == -np.inf:
-        #    res = -9999
-        #elif res == np.inf:
-        #    res = 9999
-
-        return res
+        pass
 
     # Return string representation of program. When input is not given, placeholder names are used
     def to_string(self, input: Union[None, ndarray[float]] = None) -> list[Any] | Any:
-
-        res = []
-        outputs = self._realization['output']
-
-        # Operator
-        def on_operator(node: Node, input: Union[None, ndarray[float]]) -> str:
-            operands = []
-            self._realization['expressed'].append(node)
-            for operand in node.connected_nodes:
-                operands.append(operand.traverse(input, on_operator, on_inputvar, on_float))
-            return node.function.print(operands)
-
-        # Input variable
-        def on_inputvar(node: Node, input: Union[None, ndarray[float]]) -> str:
-            self._realization['expressed'].append(node)
-            return node.function.to_string(input)
-
-        # Float
-        def on_float(node: Node, input: Union[None, ndarray[float]]) -> str:
-            self._realization['expressed'].append(node)
-            return str(node.function)
-
-        for o in outputs:
-            res.append(o.traverse(input, on_operator, on_inputvar, on_float))
-
-        # Sum over results if multiple output nodes are present
-        if len(res) == 1:
-            return res[0]
-        else:
-            return SumString(res)
+        pass
 
 
 if __name__ == "__main__":
@@ -267,18 +186,16 @@ if __name__ == "__main__":
     input_size = space.shape[0]
 
     # Test for 4 nodes of 4 genes
-    c = CartesianConfig()
-    c.n_nodes = 4
-    c.n_outputs = 1
-    gs = generate_cartesian_genome_space(c, input_size, SIMPLE_OPERATORS_DICT)
+    c = OptimizerConfig()
+    c.program.n_nodes = 20
 
-    genome = Genome(n_genes=len(gs), genome_space=gs)
-    print(genome)
+    gs = generate_cartesian_genome_space(c.program, input_size, SIMPLE_OPERATORS_DICT)
+    pop = CartesianPopulation(config=c, operators_dict=SIMPLE_OPERATORS_DICT, state_space=space)
 
-    # Test valid program
-    gs = generate_cartesian_genome_space(c, input_size, SIMPLE_OPERATORS_DICT)
-    genome = Genome(genes=test.SMALL_GENE_1_OUTPUT, genome_space=gs)
-    prog = CartesianProgram(genome, space, SIMPLE_OPERATORS, c)
+    values = pop.individuals[0]
+    genome = Genome(genome_space=gs, values=values, pop_index=0)
+
+    prog = CartesianProgram(genome, space, SIMPLE_OPERATORS, c.program)
     res = prog.evaluate(test.SMALl_INPUT)
     s = prog.to_string()
     print(s)

@@ -35,6 +35,12 @@ def genome_length(config: CartesianConfig, n_inputs:int,  operators: List[Operat
     root_values = config.n_outputs * config.n_nodes
     return function_values + connection_values + root_values
 
+def node_length(config: CartesianConfig, n_inputs:int,  operators: List[Operator]) -> int:
+    function_values = n_inputs + len(operators)
+    connection_values = config.max_node_arity * config.n_nodes
+    return function_values + connection_values
+
+
 
 # Class for gene ranges
 class GeneRange:
@@ -210,7 +216,6 @@ class Population:
             for gs in self.genome_space:
                 v = gs.sample()
                 values.extend(v)
-                print(len(v))
 
             self.individuals[i] = np.array(values)
 
@@ -252,7 +257,7 @@ def generate_cartesian_genome_space(config: CartesianConfig,
                                  np.zeros(n_operators - n_allowed_operators),
                                  allowed))
             function_range = GeneRange(min=fun_min, max=fun_max)
-            print(f'Function {i_node}: {function_range}')
+            #print(f'Function {i_node}: {function_range}')
         else:
             # Normal restrictions on the whole set of operators
             function_range = GeneRange(min=np.zeros(n_functions), max=np.ones(n_functions))
@@ -271,7 +276,7 @@ def generate_cartesian_genome_space(config: CartesianConfig,
         for i in range(config.max_node_arity):
             connection_range = GeneRange(min=con_min, max=con_max)
             gs.append(GeneSpace(connection_range))
-            print(f'Connection {i_node}: {connection_range}')
+            #print(f'Connection {i_node}: {connection_range}')
 
     # At the end, add root genes
     root_min = np.zeros(config.n_nodes)
@@ -280,7 +285,7 @@ def generate_cartesian_genome_space(config: CartesianConfig,
 
     for i in range(config.n_outputs):
         gs.append(GeneSpace(root_range))
-        print(f'Root {i}: {root_range}')
+        #print(f'Root {i}: {root_range}')
     return gs
 
 
@@ -414,33 +419,14 @@ if __name__ == '__main__':
     root_dist = DistributionalGeneSpace(n_values=c.program.n_nodes)
 
     # Genome test
-    #genome_len = genome_length(c.program, n_inputs, operators)
-    #gs = [function_dist, connection_dist, root_dist]
-    #genome = Genome(genome_length=genome_len, genome_space=gs)
+    genome_len = genome_length(c.program, n_inputs, operators)
+    gs = [function_dist, connection_dist, root_dist]
+    genome = Genome(genome_length=genome_len, genome_space=gs)
 
-    #gs = generate_cartesian_genome_space(c.program, n_inputs, SIMPLE_OPERATORS_DICT)
-    #genome = Genome(genome_length=genome_len, genome_space=gs)
-
+    c.program.n_nodes = 1
+    genome_len = genome_length(c.program, n_inputs, operators)
+    gs = generate_cartesian_genome_space(c.program, n_inputs, SIMPLE_OPERATORS_DICT)
+    genome = Genome(genome_length=genome_len, genome_space=gs)
 
     # Genome test with Cartesian gene space
     pop = CartesianPopulation(config=c, operators_dict=SIMPLE_OPERATORS_DICT, state_space=space)
-
-
-    print('done')
-
-    # Gene space test
-    #gs = OperatorGeneSpace(GeneRange(range=(-1, 0)), SIMPLE_OPERATORS)
-    #print(gs[-0.4])
-    #print(gs[-1])
-
-    # Genome test
-    #genome = Genome(n_genes=1, genome_space=[gs])
-    #print(genome.express_gene(0))
-
-    # Population test
-    #config = OptimizerConfig()
-    #env = gym.make('CartPole-v1')
-    #env.reset()
-    #space = env.observation_space
-    #pop = CartesianPopulation(config, SIMPLE_OPERATORS_DICT, space)
-    #print(pop)
