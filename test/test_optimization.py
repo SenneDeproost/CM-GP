@@ -111,4 +111,4 @@ def test_optimization():
     print(optim.best_program(input))
 
 if __name__ == '__main__':
-    test_optimization()
+    btest_optimization()

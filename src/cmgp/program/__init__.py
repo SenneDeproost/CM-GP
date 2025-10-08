@@ -41,8 +41,8 @@ SIMPLE_OPERATORS_DICT = {
         Sin(),
         Cos(),
         Abs(),
-        #Exp(),
-        #Log(),
+        Exp(),
+        Log(),
         Neg(),
         Id()
     ],
@@ -50,13 +50,13 @@ SIMPLE_OPERATORS_DICT = {
         Add(),
         Sub(),
         Mul(),
-        #Div(),
+        Div(),
         Mod(),
     ],
     3: [],
     4: [
-        #Grt(),
-        #Sml()
+        Grt(),
+        Sml()
     ]}
 
 SIMPLE_OPERATORS = [x for y in SIMPLE_OPERATORS_DICT.values() for x in y]

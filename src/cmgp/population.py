@@ -146,6 +146,8 @@ class OperatorGeneSpace(GeneSpace):
     # Return corresponding realization from the gene space
     def __getitem__(self, value: float) -> Union[float, Operator, InputVar]:
 
+        assert self.gene_range.contains(value), "Value is not part of gene space"
+
         # Non-constant encoded as negative value
         if value <= 0:
             index = self._round(-value)
@@ -323,7 +325,7 @@ def generate_cartesian_genome_space(config: CartesianConfig,
                                     operators_dict: dict[int, List[Operator]]) -> List[GeneSpace]:
     gs = []
     highest_n_operands = max(operators_dict.keys())
-    min_allowed_operator_index = 1
+    min_allowed_operator_index = -1 # !!! was 1
     operators = [x for y in operators_dict.values() for x in y]
 
     for i_node in range(config.n_nodes):

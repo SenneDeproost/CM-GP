@@ -12,8 +12,10 @@ def test_small_program_1_output():
     input_size = space.shape[0]
 
     c = CartesianConfig()
-    c.n_nodes = int(test.SMALL_GENE_1_OUTPUT.shape[0] / genes_per_node(c))
     c.n_outputs = 1
+    c.max_constant = 5.0
+    c.max_node_arity = 4
+    c.n_nodes = int(test.SMALL_GENE_1_OUTPUT.shape[0] / genes_per_node(c))
     gs = generate_cartesian_genome_space(c, 1, SIMPLE_OPERATORS_DICT)
 
     # Program: id(input_0) + 5.0
@@ -32,8 +34,10 @@ def test_small_program_2_output():
     input_size = space.shape[0]
 
     c = CartesianConfig()
-    c.n_nodes = int(test.SMALL_GENE_2_OUTPUT.shape[0] / genes_per_node(c))
     c.n_outputs = 2
+    c.max_constant = 5.0
+    c.max_node_arity = 4
+    c.n_nodes = int(test.SMALL_GENE_1_OUTPUT.shape[0] / genes_per_node(c))
     gs = generate_cartesian_genome_space(c, 1, SIMPLE_OPERATORS_DICT)
 
     # Program: ∑[ (id(input_0) + 5.0) , id(input_0) ]
@@ -52,8 +56,10 @@ def test_big_program_1_output():
     input_size = space.shape[0]
 
     c = CartesianConfig()
-    c.n_nodes = int(test.BIG_GENE_1_OUTPUT.shape[0] / genes_per_node(c))
     c.n_outputs = 1
+    c.max_constant = 5.0
+    c.max_node_arity = 4
+    c.n_nodes = int(test.BIG_GENE_1_OUTPUT.shape[0] / genes_per_node(c))
     gs = generate_cartesian_genome_space(c, 2, SIMPLE_OPERATORS_DICT)
 
     # Program: (id(input_0) + 5.0) * input_1
@@ -72,8 +78,10 @@ def test_big_program_2_output():
     input_size = space.shape[0]
 
     c = CartesianConfig()
-    c.n_nodes = int(test.BIG_GENE_2_OUTPUT.shape[0] / genes_per_node(c))
     c.n_outputs = 2
+    c.max_constant = 5.0
+    c.max_node_arity = 4
+    c.n_nodes = int(test.BIG_GENE_2_OUTPUT.shape[0] / genes_per_node(c))
     gs = generate_cartesian_genome_space(c, 2, SIMPLE_OPERATORS_DICT)
 
     # Program: ∑[ id(input_0) + 5.0, (id(input_0) + 5.0) * input_1 ]
