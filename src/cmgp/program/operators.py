@@ -89,7 +89,7 @@ class Mod(Operator):
 
     @staticmethod
     def print(x: np.ndarray[float]) -> str:
-        return f'{x[0]} % {x[1]}'
+        return f'({x[0]} % {x[1]})'
 
 
 class Mul(Operator):
@@ -105,7 +105,7 @@ class Mul(Operator):
 
     @staticmethod
     def print(x: np.ndarray[float]) -> str:
-        return f'{bc(x[0])} * {bc(x[1])}'
+        return f'({bc(x[0])} * {bc(x[1])})'
 
 
 class Div(Operator):
@@ -125,7 +125,7 @@ class Div(Operator):
 
     @staticmethod
     def print(x: np.ndarray[float]) -> str:
-        return f'{bc(x[0])} / {bc(x[1])}'
+        return f'({bc(x[0])} / {bc(x[1])})'
 
 
 class Abs(Operator):

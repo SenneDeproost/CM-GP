@@ -118,7 +118,7 @@ class PyGADOptimizer:
                 state_space=self.population.state_space,
                 operators=self.operators_dict
             )
-            print(f'Mutated: {prog}')
+            #print(f'Mutated: {prog}')
 
     # Initialize PyGAD optimizer Re-init is not expensive.
     def _init_optimizer(self) -> None:
@@ -127,10 +127,10 @@ class PyGADOptimizer:
         instance = pygad.GA(
             # General
             suppress_warnings=True,
-            fitness_func=self.fitness_function_gradients,
+            fitness_func=self.fitness_function_q,
             initial_population=self.population.individuals,
             num_generations=c.n_generations,
-            #keep_elitism=c.elitism,
+            keep_elitism=c.elitism,
             gene_space=self.range,
             #save_solutions=False,
             #save_best_solutions=True,
@@ -172,7 +172,6 @@ class PyGADOptimizer:
 
         return -res[0][0]
 
-
     def fitness_function_gradients(self, _, solution, solution_index) -> float:
 
         # Compute improved actions
@@ -186,7 +185,7 @@ class PyGADOptimizer:
             operators=self.operators_dict
         )
 
-        print(f'Program: {prog}')
+        #print(f'Program: {prog}')
 
         prog_actions = np.array([prog(state) for state in self._critic_states]).reshape((-1, 1))  #.astype(np.float32)
         prog_actions = prog_actions.clip(self.action_space.low, self.action_space.high)
@@ -200,7 +199,7 @@ class PyGADOptimizer:
         batch_size = self._critic_states.shape[0]
         distance = abs(desired_actions - prog_actions)
         #fitness = -(distance.sum() / batch_size)
-        fitness = -distance.mean()
+        fitness = -sum(distance)
 
         return fitness
 
@@ -291,6 +290,7 @@ class PyGADOptimizer:
 
         # Compute program actions
         prog_actions = np.array([prog(state) for state in self._critic_states]).reshape((-1, 1))  #.astype(np.float32)
+
 
         if self.action_space is not None:
             prog_actions = prog_actions.clip(self.action_space.low, self.action_space.high)
@@ -393,7 +393,7 @@ class PyGADOptimizer:
             # If replay buffer is given, sample new experience in each generation
             if self.buffer is not None:
                 pass
-                self.new_sample()
+                #self.new_sample()
 
             # Reinit test
             self._init_optimizer()

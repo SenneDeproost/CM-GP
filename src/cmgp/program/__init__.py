@@ -41,7 +41,7 @@ SIMPLE_OPERATORS_DICT = {
         Sin(),
         Cos(),
         Abs(),
-        Exp(),
+        #Exp(),
         Log(),
         Neg(),
         Id()

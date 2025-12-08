@@ -16,13 +16,13 @@ class WandbConfig:
     # Wandb track
     track: bool = field(default=True)
     # Wandb project name
-    project: str = field(default='RLC_25')
+    project: str = field(default='testing')
     # Wandb group name
     group: str = field(default='test')
     # Wandb tags
     tags: tuple = field(default=tuple())
     # Wandb entity name
-    entity: str = field(default=None)
+    entity: str = field(default="")
 
 
 @dataclass
@@ -30,7 +30,7 @@ class HuggingFaceConfig:
     # Upload model to huggingface
     upload: bool = field(default=False)
     # Huggingface entity name
-    entity: str = field(default=None)
+    entity: str = field(default="")
 
 
 @dataclass
@@ -61,7 +61,7 @@ class CartesianConfig:
     # Number maximum arity over the set of operators
     max_node_arity: int = field(default=2)
     # Highest number for constant
-    max_constant: float = field(default=1)  # Higher constant == more chance for constant ToDo: lower prob constant
+    max_constant: float = field(default=0)  # Higher constant == more chance for constant ToDo: lower prob constant
     # Amount of outputs
     n_outputs: int = field(default=1)
 
@@ -72,17 +72,17 @@ class OptimizerConfig:
     """Configuration for the Genetic Evolution based optimizer"""
 
     # Configuration for type of program
-    program: Union[CartesianConfig] = field(default=CartesianConfig)
+    program: Union[CartesianConfig] = field(default_factory=CartesianConfig)
     # Number of individuals in population
     n_individuals: int = field(default=100) #10
     # Number of generations
-    n_generations: int = field(default=1)
+    n_generations: int = field(default=20) #20 # 100
     # Number of parents mating
-    n_parents_mating: int = field(default=50)
+    n_parents_mating: int = field(default=90)
     # Number of parents mating
     keep_parents: int = field(default=0)
     # Probability of gene mutation
-    gene_mutation_prob: float = field(default=0.01) # 0.01
+    gene_mutation_prob: float = field(default=0.1) # 0.01
     # Percentage of genes to mutate (no effect if gene_mutation_prob is given)
     #gene_mutation_percent: float = field(default=10.0)
     # How many elites to keep
@@ -90,7 +90,7 @@ class OptimizerConfig:
     # Type of mutation
     mutation: str = field(default='random')
     # Range of mutation values
-    mutation_val: tuple[float, float] = field(default=(-10.0, 10.0)) # ! Important check to perform
+    mutation_val: tuple[float, float] = field(default=(-20.0, 20.0)) # ! Important check to perform
     # Type of crossover
     crossover: str = field(default='single_point')
     # Type of parent selection
@@ -104,13 +104,13 @@ class OptimizerConfig:
 
 
 @dataclass
-class AgentConfig:
+class RLAgentConfig:
     """Configuration for the Reinforcement Learning Agent"""
 
     # Size of replay buffer
-    buffer_size: int = field(default=int(1e6))
+    buffer_size: int = field(default=int(1e5))
     # Learning rate of network optimizer
-    learning_rate: float = field(default=3e-4)
+    learning_rate: float = field(default=3e-5)
     # Discount factor
     gamma: float = field(default=0.99)
     # Target smoothing coefficient
@@ -118,11 +118,11 @@ class AgentConfig:
     # Batch size of sample from replay memory for critic
     critic_batch_size: int = field(default=256) # 256
     # Batch size of sample from replay memory for actor
-    actor_batch_size: int = field(default=1000)  # 1000 # Was a mistake, nonactive
+    actor_batch_size: int = field(default=1000)  # 1000 # Was a mistake, nonactive # 256 #25
     # Scale of the policy noise
     exploration_noise: float = field(default=0.1) # 0.1
     # Policy noise
-    policy_noise: float = field(default=0.1)
+    policy_noise: float = field(default=0.0)
     # Noise clip of the Target Policy Smoothing Regularization
     noise_clip: float = field(default=0.5)
 
@@ -131,7 +131,7 @@ class CriticConfig:
     """Config for critic"""
 
     # Learning rate
-    learning_rate: float = field(default=3e-4) #3e-4
+    learning_rate: float = field(default=3e-6) #3e-4
     # Noise
     noise_clip: float = field(default=0.5)
     # Target smoothing coefficient
@@ -142,7 +142,7 @@ class CriticConfig:
     # Amount of update iterations
     gradient_updates: int = field(default=1) # 10
     # Gradient update threshold
-    update_threshold: float = field(default=1)
+    update_threshold: float = field(default=100000)
     # Rate of update the gradient is applied
     update_rate: float = field(default=1)
 
@@ -155,7 +155,7 @@ class TrainingConfig:
     # Agent
     agent: AgentConfig = field(default_factory=AgentConfig)
     # Critic
-    critic: CriticConfig = field(default=CriticConfig)
+    critic: CriticConfig = field(default_factory=CriticConfig)
 
     # Amount of time steps to learn
     timesteps: int = field(default=150_000)
@@ -180,7 +180,7 @@ class ExperimentConfig:
     log: LogConfig = field(default_factory=LogConfig)
 
     # Seed value
-    seed: int = field(default=0)
+    seed: int = field(default=90)
     # Deterministic
     deterministic: bool = field(default=True)
     # CUDA use

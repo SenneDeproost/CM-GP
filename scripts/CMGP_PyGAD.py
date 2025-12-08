@@ -31,7 +31,7 @@ from optimizer import PyGADOptimizer
 from config import ExperimentConfig, CriticConfig
 
 import envs
-from program import SIMPLE_OPERATORS_DICT
+from program import SIMPLE_FUNCTIONS_DICT
 from critic import Critic
 
 
@@ -44,21 +44,6 @@ def make_env(env_id, seed, idx, capture_video, run_name):
     env = gym.wrappers.RecordEpisodeStatistics(env)
     env.action_space.seed(seed)
     return env
-
-
-# ALGO LOGIC: initialize agent here:
-class QNetwork(nn.Module):
-    def __init__(self, env):
-        super().__init__()
-        self.fc1 = nn.Linear(np.array(env.observation_space.shape).prod() + np.prod(env.action_space.shape), 128)
-        self.fc3 = nn.Linear(128, 1)
-
-    def forward(self, x, a):
-        x = torch.cat([x, a], 1)
-        x = F.relu(self.fc1(x))
-        x = self.fc3(x)
-        return x
-
 
 def get_state_actions(programs, obs, env):
     program_actions = []
@@ -84,7 +69,7 @@ def main(config: ExperimentConfig):
 
         wandb.init(
             project=args.log.wandb.project,
-            entity=args.log.wandb.entity,
+            #entity=args.log.wandb.entity,
             group=args.log.wandb.group,
             mode='online',
             sync_tensorboard=True,
@@ -122,16 +107,13 @@ def main(config: ExperimentConfig):
         handle_timeout_termination=False,
     )
 
-    buff = EpisodicReplayBuffer(size=100)
-    tmp = []
-
     critic_config = CriticConfig()
     critic = Critic(env, critic_config)
 
     # Actor is a learnable program for each action in the action space
     program_optimizers = [PyGADOptimizer(
         args.training.optimizer,
-        SIMPLE_OPERATORS_DICT,  # Todo: change!
+        SIMPLE_FUNCTIONS_DICT,  # Todo: change!
         observation_space=env.observation_space,
         action_space=env.action_space,
         critic=critic,
@@ -144,7 +126,6 @@ def main(config: ExperimentConfig):
 
 
     best_programs = [optimizer.best_program for optimizer in program_optimizers]
-
 
     start_time = time.time()
 
@@ -161,7 +142,7 @@ def main(config: ExperimentConfig):
         else:
             with torch.no_grad():
                 action = get_state_actions(best_programs, obs[None, :], env)[0]
-                action += np.random.normal(loc=0, scale=args.training.agent.exploration_noise) # !!!!!!
+                #action += np.random.normal(loc=0, scale=args.training.agent.exploration_noise) # !!!!!!
                 action = action.clip(env.action_space.low, env.action_space.high)
 
         # TRY NOT TO MODIFY: execute the game and log data.
@@ -171,8 +152,6 @@ def main(config: ExperimentConfig):
         #print(f'Action: {action}')
         #print(f'Reward: {reward}')
 
-        tmp.append(obs)
-
         # TRY NOT TO MODIFY: record rewards for plotting purposes
         if 'episode' in info:
             print(f"global_step={global_step}, episodic_return={info['episode']['r']}")
@@ -181,7 +160,6 @@ def main(config: ExperimentConfig):
             writer.add_scalar("policy/env_interactions", n_environment_interactions, global_step)
             writer.add_scalar("policy/reward", reward, global_step)
             writer.add_text('policy/action', str(action), global_step)
-            buff.add(tmp)
             tmp = []
             # Prevent best program to change during episode
             #best_programs = [optimizer.best_program for optimizer in program_optimizers]
@@ -206,8 +184,6 @@ def main(config: ExperimentConfig):
                     -args.training.agent.noise_clip, args.training.agent.noise_clip
                 )
 
-                #clipped_noise = 0 # !!!!!!
-
                 # Go over all observations the buffer provides
                 next_state_actions = get_state_actions(best_programs,
                                                        data.next_observations.detach().numpy(), env)
@@ -221,26 +197,6 @@ def main(config: ExperimentConfig):
             # Optimize the program
             if global_step % args.training.policy_update == 0:
 
-                # New sampling
-                #data = rb.sample(args.training.agent.actor_batch_size) # Was a mistake
-
-                program_actions = get_state_actions(best_programs,
-                                                    data.observations.detach().numpy(), env)
-
-                cur_program_actions = np.copy(program_actions)
-                #print('BEFORE ACTIONS')
-                #pprint(program_actions[0:4])
-
-                #improved_actions, improved_action_deltas = (
-                #    critic.improve_actions(cur_program_actions, data.observations.detach().numpy()))
-
-                #print('IMPROVED ACTIONS')
-                #pprint(improved_actions[0:4])
-
-                # Fit the program optimizers on all the action dimensions
-                states = data.observations.detach().numpy()
-                #actions = improved_actions
-
                 print('Best program:')
 
                 for action_index in range(n_actions):
@@ -250,9 +206,8 @@ def main(config: ExperimentConfig):
                     max_fit, min_fit, mean_fit = optimizer.fit()
                     print(f"a[{action_index}] = {program_optimizers[action_index].best_program}")
                     program_optimizers[action_index] = optimizer
-                    best_programs = [optimizer.best_program for optimizer in program_optimizers]
 
-                    # Optimizer
+                    # Optimizer logging
                     if global_step % 10 == 0:
                         writer.add_scalar(f'optimizer/action_{action_index}/min_fit', min_fit, global_step)
                         writer.add_scalar(f'optimizer/action_{action_index}/max_fit', max_fit, global_step)
@@ -260,10 +215,12 @@ def main(config: ExperimentConfig):
                         writer.add_text(f'optimizer/best_program/action_{action_index}',
                                         str(optimizer.best_program), global_step)
 
+                # !!!!
+                if 'episode' in info:
+                    best_programs = [optimizer.best_program for optimizer in program_optimizers]
                 # update the target network
                 critic.update_target()
 
-                #next_obs, _ = env.reset()
 
             # Logging
             if global_step % 10 == 0:

@@ -88,7 +88,7 @@ def main(config: ExperimentConfig):
 
         wandb.init(
             project=args.log.wandb.project,
-            entity=args.log.wandb.entity,
+            #entity=args.log.wandb.entity,
             group=args.log.wandb.group,
             mode='online',
             sync_tensorboard=True,
@@ -204,6 +204,7 @@ def main(config: ExperimentConfig):
             observations = data.observations
 
             qf1_a_values = qf1(observations, data.actions).view(-1)
+            print(qf1_a_values.mean())
             qf2_a_values = qf2(observations, data.actions).view(-1)
             qf1_loss = F.mse_loss(qf1_a_values, next_q_value)
             qf2_loss = F.mse_loss(qf2_a_values, next_q_value)
@@ -244,7 +245,7 @@ def main(config: ExperimentConfig):
     env.close()
     writer.close()
 
-    torch.save(critic.state_dict(), "./critic.pth")
+    torch.save(critic.model.state_dict(), "./critic.pth")
 
 
 if __name__ == "__main__":

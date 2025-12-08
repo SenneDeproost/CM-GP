@@ -7,8 +7,10 @@ from collections import OrderedDict
 from copy import copy
 from typing import List, Callable, Union, Counter
 import numpy as np
+from numpy import random
 from sympy.polys.polyoptions import Order
 from tensorflow.python.ops.gen_nn_ops import selu_grad
+from torch.backends.cudnn import deterministic
 
 from config import CartesianConfig, OptimizerConfig
 import gymnasium as gym
@@ -90,7 +92,7 @@ class GeneSpace:
         self.gene_range = gene_range
 
     # Sampling method within the range of the space
-    def sample(self, strategy: str = 'uniform') -> Union[int, float]:
+    def sample(self, strategy: str = 'uniform', std: float = 0.0) -> Union[int, float]:
 
         # Check for empty range
         if self.gene_range.empty:
@@ -99,7 +101,7 @@ class GeneSpace:
         # Strategies for sampling
         match strategy:
 
-            # Normal uniform sampling float
+            # Uniform sampling float
             case 'uniform':
                 if not (self.gene_range.values is None):
                     return np.random.choice(self.gene_range.values)
@@ -144,12 +146,24 @@ class OperatorGeneSpace(GeneSpace):
         self.operators = operators
 
     # Return corresponding realization from the gene space
-    def __getitem__(self, value: float) -> Union[float, Operator, InputVar]:
+    def __getitem__(self, value: float, strategy: str = 'deterministic', std: float = 0) -> Union[float, Operator, InputVar]:
 
         assert self.gene_range.contains(value), "Value is not part of gene space"
 
+        # Sampling index strategy
+        match strategy:
+            case 'deterministic':
+                pass
+            case 'stochastic':
+                value = random.normal(loc=value, scale=std)
+            case _:
+                raise ValueError(f'Unknown strategy {strategy}')
+
+        #value = self.contain(value)
+
         # Non-constant encoded as negative value
         if value <= 0:
+
             index = self._round(-value)
 
             # Value is index in input space
@@ -235,8 +249,8 @@ class Genome:
 
         # Check if genes are given or need to be initialized by the genome
         if genes is not None:
-            self.genes = genes
             self.n_genes = len(genes)
+            self.genes = genes
         else:
             self.genes = np.zeros(n_genes)
             self._init_genome()
@@ -325,7 +339,7 @@ def generate_cartesian_genome_space(config: CartesianConfig,
                                     operators_dict: dict[int, List[Operator]]) -> List[GeneSpace]:
     gs = []
     highest_n_operands = max(operators_dict.keys())
-    min_allowed_operator_index = -1 # !!! was 1
+    min_allowed_operator_index = 0 # !!! was 1
     operators = [x for y in operators_dict.values() for x in y]
 
     for i_node in range(config.n_nodes):

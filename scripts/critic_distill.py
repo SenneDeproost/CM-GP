@@ -29,7 +29,7 @@ from optimizer import PyGADOptimizer
 from config import ExperimentConfig, CriticConfig
 
 import envs
-from program import SIMPLE_OPERATORS_DICT
+from program import SIMPLE_FUNCTIONS_DICT
 from critic import Critic
 
 
@@ -67,7 +67,7 @@ def main(config: ExperimentConfig):
 
         wandb.init(
             project=args.log.wandb.project,
-            entity=args.log.wandb.entity,
+            #entity=args.log.wandb.entity,
             group=args.log.wandb.group,
             mode='online',
             sync_tensorboard=True,
@@ -107,13 +107,12 @@ def main(config: ExperimentConfig):
 
     critic_config = CriticConfig()
     critic = Critic(env, critic_config)
-    critic.model.load_state_dict(torch.load('./critic.pth'))
-    #critic.model.load_state_dict()
+    critic.model.load_state_dict(torch.load('./trained_critic_InvertedPendulum-v4.pth'))
 
     # Actor is a learnable program for each action in the action space
     program_optimizers = [PyGADOptimizer(
         args.training.optimizer,
-        SIMPLE_OPERATORS_DICT,  # Todo: change!
+        SIMPLE_FUNCTIONS_DICT,  # Todo: change!
         observation_space=env.observation_space,
         action_space=env.action_space,
         critic=critic,
@@ -187,7 +186,7 @@ def main(config: ExperimentConfig):
                 next_state_actions = (next_state_actions + clipped_noise).clamp(
                     env.action_space.low[0], env.action_space.high[0]).float()
 
-            critic_loss, q_values = critic.learn_values(data, next_state_actions)
+            #critic_loss, q_values = critic.learn_values(data, next_state_actions)
 
             # Optimize the program
             if global_step % args.training.policy_update == 0:
@@ -236,9 +235,9 @@ def main(config: ExperimentConfig):
             # Logging
             if global_step % 10 == 0:
                 # Critic
-                writer.add_scalar('critic/loss', critic_loss, global_step)
+                #writer.add_scalar('critic/loss', critic_loss, global_step)
                 #writer.add_scalar('critic/mean_delta', improved_action_deltas.mean(), global_step)
-                writer.add_scalar('critic/mean_q_value', q_values.mean(), global_step)
+                #writer.add_scalar('critic/mean_q_value', q_values.mean(), global_step)
                 # Experiment
                 writer.add_scalar('experiment/time', time.time() - start_time, global_step)
                 writer.add_scalar('experiment/time_per_step', global_step / (time.time() - start_time), global_step)
