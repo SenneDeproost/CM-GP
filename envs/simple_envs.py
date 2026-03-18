@@ -161,6 +161,41 @@ class SimpleGoalEnv(gym.Env):
         return self.state, reward, done or (self._timestep > 50), False, {}
 
 
+class TestGoalEnv(gym.Env):
+    def __init__(self):
+        super().__init__()
+
+        self.observation_space = gym.spaces.Box(
+            low=np.zeros((1,)),
+            high=np.ones((1,))
+        )
+        self.action_space = gym.spaces.Box(
+            low=-np.ones((1,)),
+            high=np.ones((1,))
+        )
+        self.state = np.zeros((1,), dtype=np.float32)
+
+    def reset(self, **kwargs):
+        self.state[0] = random.random()
+        #self.state[1] = 0.3  #random.random()
+        self._timestep = 0
+
+        return self.state, {}
+
+    def step(self, a):
+        objective = (0)
+        s = self.state + a
+
+        reward = -abs(objective - s)
+
+        if 0.4 <= s[0] <= 0.5:
+            reward = -1
+        if s[0] > 1:
+            reward = -1
+
+        return np.zeros((1,)), reward, True, False, {}
+
+
 class SimpleGoalEnvSpeed(gym.Env):
     """ Continuous navigation task: observe (x, y, speed_x, speed_y), produce (dx, dy), and aim at reaching (0, 0). The range of observations is [0, 1] (so we try to reach a corner)
     """
@@ -207,8 +242,8 @@ class SimpleGoalEnvSpeed(gym.Env):
         old_d = distance_to_goal(self.state)
 
         # Add speed to position
-        self.state[0] = np.clip(self.state[0] + 0.1*self.state[2], 0.0, 1.0)
-        self.state[1] = np.clip(self.state[1] + 0.1*self.state[3], 0.0, 1.0)
+        self.state[0] = np.clip(self.state[0] + 0.1 * self.state[2], 0.0, 1.0)
+        self.state[1] = np.clip(self.state[1] + 0.1 * self.state[3], 0.0, 1.0)
 
         new_d = distance_to_goal(self.state)
 

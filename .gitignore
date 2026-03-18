@@ -10,3 +10,20 @@ videos/
 wandb/
 
 .DS_Store
+
+_old/
+
+*.ipynb_checkpoints*
+/scripts/.ipynb_checkpoints/
+
+*.pth
+
+scripts/cart_action/
+
+scripts/frames/
+
+scripts/pole_angle/
+
+*.npy
+
+*.mp4
